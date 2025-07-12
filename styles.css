@@ -196,6 +196,26 @@ body {
   font-weight: 500;
 }
 
+.starter-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: var(--bg-color);
+}
+
+.weather-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 6px 20px var(--shadow);
+  width: 100%;
+  max-width: 500px;
+  backdrop-filter: blur(8px);
+  text-align: center;
+}
+
 .autocomplete-dropdown {
   position: absolute;
   background: var(--card-bg);
@@ -516,14 +536,17 @@ input#location {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 14px;
+  padding: 16px;
+  font-size: 1.1rem;
   transition: all 0.3s ease;
   backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px var(--shadow);
+  width: 100%;
 }
 
 input#location:focus {
   border-color: var(--highlight-color);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
 @media (max-width: 768px) {
@@ -644,6 +667,11 @@ input#location:focus {
   .header-button i {
     font-size: 1rem;
   }
+
+  input#location {
+    padding: 14px;
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 360px) {
@@ -675,6 +703,11 @@ input#location:focus {
   }
 
   #clock {
+    font-size: 0.9rem;
+  }
+
+  input#location {
+    padding: 12px;
     font-size: 0.9rem;
   }
 }
