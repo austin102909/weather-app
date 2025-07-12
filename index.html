@@ -9,11 +9,11 @@
 </head>
 <body>
   <header class="header">
-    <h1 id="location-name-header">Weather App</h1>
+    <h1 id="location-name-header" class="header-title">Weather App</h1>
     <div class="header-buttons">
       <button id="alerts-button" class="header-button"><i class="fas fa-exclamation-triangle"></i><span id="alerts-count" class="hidden"></span></button>
       <button id="settings-button" class="header-button"><i class="fas fa-cog"></i></button>
-      <div id="clock"></div>
+      <div id="clock" class="clock"></div>
     </div>
   </header>
 
@@ -27,21 +27,21 @@
     <div class="weather-card">
       <input type="text" id="location" placeholder="Enter location (e.g., Chicago, IL)" autocomplete="off">
       <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
-      <p id="location-error" class="hidden"></p>
-      <button id="auto-locate">Use Current Location</button>
-      <p id="geolocation-message" class="hidden">Locating...</p>
+      <p id="location-error" class="error-message hidden"></p>
+      <button id="auto-locate" class="locate-button">Use Current Location</button>
+      <p id="geolocation-message" class="geolocation-message hidden">Locating...</p>
     </div>
   </div>
 
-  <div id="weather-result" class="hidden">
+  <div id="weather-result" class="weather-result hidden">
     <div id="now-section" class="tab-content active">
-      <div id="now-section-content"></div>
+      <div class="weather-card" id="now-section-content"></div>
     </div>
     <div id="hourly-section" class="tab-content">
-      <div id="hourly-section-content"></div>
+      <div class="weather-card" id="hourly-section-content"></div>
     </div>
     <div id="7-day-section" class="tab-content">
-      <div id="7-day-section-content"></div>
+      <div class="weather-card" id="7-day-section-content"></div>
     </div>
   </div>
 
@@ -62,7 +62,7 @@
     </div>
     <div class="overlay-content">
       <div class="settings-toggle">
-        <span>Dark Mode</span>
+        <span class="toggle-label">Dark Mode</span>
         <label class="switch">
           <input type="checkbox" id="theme-toggle">
           <span class="slider"></span>
@@ -71,8 +71,8 @@
     </div>
   </div>
 
-  <div id="data-table-container" class="hidden">
-    <h2 id="data-view-title" class="text-xl font-bold mb-4"></h2>
+  <div id="data-table-container" class="data-table-container hidden">
+    <h2 id="data-view-title" class="data-title"></h2>
     <table id="data-table">
       <thead><tr></tr></thead>
       <tbody id="data-table-body"></tbody>
@@ -83,7 +83,7 @@
     </table>
   </div>
 
-  <div id="loading"></div>
+  <div id="loading" class="loading"></div>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://moment.github.io/luxon/global/luxon.min.js"></script>
