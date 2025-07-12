@@ -162,6 +162,7 @@ body {
   overflow-y: auto;
   opacity: 0;
   transition: opacity 0.4s ease;
+  z-index: 10;
 }
 
 .tab-content.active {
@@ -278,6 +279,7 @@ input:checked + .slider:before {
   min-height: 100vh;
   padding: 20px;
   background: var(--bg-color);
+  z-index: 20;
 }
 
 .weather-card {
@@ -290,6 +292,7 @@ input:checked + .slider:before {
   backdrop-filter: blur(14px);
   text-align: center;
   transition: all 0.2s ease;
+  z-index: 10;
 }
 
 .weather-card:hover {
@@ -306,7 +309,7 @@ input:checked + .slider:before {
   width: 100%;
   max-width: inherit;
   box-shadow: 0 8px 20px var(--shadow);
-  z-index: 20;
+  z-index: 25;
   margin-top: 8px;
   backdrop-filter: blur(14px);
 }
@@ -647,154 +650,19 @@ input#location:focus {
   100% { transform: rotate(360deg); }
 }
 
+/* Ensure starter screen hides tabs and results */
+#starter-screen:not(.hidden) {
+  display: flex !important;
+  z-index: 20;
+}
+
+#starter-screen:not(.hidden) ~ #tabs,
+#starter-screen:not(.hidden) ~ #weather-result {
+  display: none !important;
+  opacity: 0;
+}
+
 @media (max-width: 768px) {
   .hour-cell {
     min-width: 90px;
-    font-size: 1.15rem;
-  }
-
-  .hour-cell img {
-    width: 56px;
-    height: 56px;
-  }
-
-  .hour-cell.additional {
-    min-width: 85px;
-    font-size: 1.05rem;
-  }
-
-  .seven-day-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-
-  .weather-card {
-    padding: 24px;
-  }
-
-  .day-item {
-    padding: 18px;
-  }
-
-  .day-item img {
-    width: 72px;
-    height: 72px;
-  }
-}
-
-@media (max-width: 600px) {
-  .hour-cell {
-    min-width: 80px;
-    font-size: 1.05rem;
-  }
-
-  .hour-cell img {
-    width: 48px;
-    height: 48px;
-  }
-
-  .hour-cell.additional {
-    min-width: 75px;
-    font-size: 0.95rem;
-  }
-
-  .seven-day-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-
-  .day-item {
-    padding: 16px;
-  }
-
-  .day-item img {
-    width: 64px;
-    height: 64px;
-  }
-}
-
-@media (max-width: 480px) {
-  .hour-cell {
-    min-width: 70px;
-    font-size: 0.95rem;
-  }
-
-  .hour-cell img {
-    width: 44px;
-    height: 44px;
-  }
-
-  .hour-cell.additional {
-    min-width: 65px;
-    font-size: 0.9rem;
-  }
-
-  .seven-day-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .day-item {
-    padding: 14px;
-  }
-
-  .day-item img {
-    width: 56px;
-    height: 56px;
-  }
-
-  .day-item .font-medium {
-    font-size: 1.3rem;
-  }
-
-  .weather-card {
-    padding: 20px;
-  }
-
-  #data-table th:first-child,
-  #data-table td:first-child {
-    min-width: 100px;
-  }
-
-  #data-table th, #data-table td {
-    padding: 10px;
-    font-size: 0.9rem;
-  }
-
-  .header-button {
-    padding: 6px 10px;
-  }
-
-  .header-button i {
-    font-size: 1.1rem;
-  }
-
-  input#location {
-    padding: 16px;
-    font-size: 1.05rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .header h1 {
-    font-size: 1.5rem;
-  }
-
-  .tab-button {
-    font-size: 1rem;
-    padding: 10px;
-  }
-
-  .hour-cell {
-    min-width: 60px;
-    font-size: 0.9rem;
-  }
-
-  .hour-cell img {
-    width: 40px;
-    height: 40px;
-  }
-
-  .hour-cell.additional {
-    min-width: 55px;
-    font-size: 0.85rem;
-  }
-
-  .day-item img
+    font-size: 1.
