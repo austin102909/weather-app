@@ -18,7 +18,9 @@ const elements = {
   loading: document.getElementById('loading'),
   autoLocate: document.getElementById('auto-locate'),
   geolocationMessage: document.getElementById('geolocation-message'),
-  clock: document.getElementById('clock')
+  clock: document.getElementById('clock'),
+  dataTableBody: document.querySelector('#data-table tbody'),
+  summaryTableBody: document.getElementById('summary-table-body')
 };
 
 const SYNOPTIC_API_TOKEN = '81ebbb6ea61247ac85cb88a96d97fcf2';
@@ -108,36 +110,31 @@ function updateSummaryTable(observations) {
   };
   excludedVars.forEach(v => {
     lastValues[v] = 'N/A';
-    if (observations[v] && Array.isArray(observations[v])) {
-      for (let i = observations[v].length - 1; i >= 0; i--) {
-        const value = observations[v][i];
-        if (value !== null && value !== '' && !isNaN(parseFloat(value))) {
-          lastValues[v] = v.includes('air_temp') ? `${(parseFloat(value) * 9/5 + 32).toFixed(1)}°F` : formatPrecipitation(parseFloat(value) * 0.03937);
-          break;
-        }
-      }
+    if (observations[v]?.length) {
+      const value = observations[v].slice().reverse().find(val => val !== null && val !== '' && !isNaN(parseFloat(val)));
+      if (value) lastValues[v] = v.includes('air_temp') ? `${(parseFloat(value) * 9/5 + 32).toFixed(1)}°F` : formatPrecipitation(parseFloat(value) * 0.03937);
     }
   });
-  $('#summary-table-body').html(excludedVars.map(v => {
+  elements.summaryTableBody.innerHTML = excludedVars.map(v => {
     const label = labelMap[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const style = v.includes('air_temp') ? `style="color: ${getTemperatureColor(lastValues[v])}"` : v.includes('precip_accum') ? `style="color: var(--precip-color)"` : '';
     return `<tr><td class="border border-gray-200 p-3">${label}</td><td class="font-bold border border-gray-200 p-3" ${style}>${lastValues[v]}</td></tr>`;
-  }).join(''));
+  }).join('');
 }
 
 function displayStationData(station) {
   if (!station?.OBSERVATIONS?.date_time) {
-    $('#data-table tbody').html('');
-    $('#summary-table-body').html('');
-    $('#data-view-title').text(`Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`);
+    elements.dataTableBody.innerHTML = '';
+    elements.summaryTableBody.innerHTML = '';
+    document.getElementById('data-view-title').textContent = `Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`;
     return;
   }
   allObservations = station.OBSERVATIONS;
   allTimestamps = (allObservations.date_time || []).slice().reverse();
   if (!allTimestamps.length) {
-    $('#data-table tbody').html('');
-    $('#summary-table-body').html('');
-    $('#data-view-title').text(`Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`);
+    elements.dataTableBody.innerHTML = '';
+    elements.summaryTableBody.innerHTML = '';
+    document.getElementById('data-view-title').textContent = `Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`;
     return;
   }
   const variables = Object.keys(allObservations).filter(key => key !== 'date_time' && !/cloud_layer|metar|pressure_change_code|dew_point_temperature_set_1(?!d)|air_temp_high_6_hour_set_1|air_temp_low_6_hour_set_1|air_temp_high_24_hour_set_1|air_temp_low_24_hour_set_1|precip_accum_one_hour_set_1|precip_accum_three_hour_set_1|precip_accum_six_hour_set_1|precip_accum_24_hour_set_1|sea_level_pressure_set_1$|sea_level_pressure_tendency$|weather_cond_code_set_1/.test(key));
@@ -145,33 +142,16 @@ function displayStationData(station) {
   const filteredObservations = {};
   sortedVariables.forEach(v => filteredObservations[v] = allObservations[v]?.length === allTimestamps.length ? allObservations[v].slice().reverse() : Array(allTimestamps.length).fill(null));
   const { converted: convertedObservations } = convertToAmericanUnits(filteredObservations, sortedVariables);
-  $('#data-view-title').text(`Station: ${station.STID} | Last Updated: ${luxon.DateTime.now().setZone(currentTimezone).toFormat('MM/dd/yyyy HH:mm:ss')}`);
+  document.getElementById('data-view-title').textContent = `Station: ${station.STID} | Last Updated: ${luxon.DateTime.now().setZone(currentTimezone).toFormat('MM/dd/yyyy HH:mm:ss')}`;
   const officialLabels = {
-    'air_temp_set_1': 'Air Temperature: °F',
-    'relative_humidity_set_1': 'Relative Humidity: %',
-    'wind_speed_set_1': 'Wind Speed: mph',
-    'heat_index_set_1d': 'Heat Index: °F',
-    'weather_summary_set_1d': 'Weather Summary',
-    'wind_cardinal_direction_set_1d': 'Wind Cardinal Direction',
-    'wind_gust_set_1': 'Wind Gust: mph',
-    'weather_condition_set_1d': 'Weather Condition',
-    'dew_point_temperature_set_1d': 'Dew Point Temperature: °F',
-    'visibility_set_1': 'Visibility: miles',
-    'ceiling_set_1': 'Ceiling Height: ft',
-    'pressure_set_1d': 'Station Pressure: mbar',
-    'sea_level_pressure_set_1d': 'Sea Level Pressure: mbar',
-    'altimeter_set_1': 'Altimeter Setting: inHg',
-    'pressure_tendency_set_1': 'Pressure Tendency',
-    'wet_bulb_temp_set_1d': 'Wet Bulb Temperature: °F',
-    'wind_direction_set_1': 'Wind Direction: °',
-    'peak_wind_speed_set_1': 'Peak Wind Speed: mph',
-    'peak_wind_direction_set_1': 'Peak Wind Direction: °'
+    'air_temp_set_1': 'Air Temperature: °F', 'relative_humidity_set_1': 'Relative Humidity: %', 'wind_speed_set_1': 'Wind Speed: mph', 'heat_index_set_1d': 'Heat Index: °F', 'weather_summary_set_1d': 'Weather Summary', 'wind_cardinal_direction_set_1d': 'Wind Cardinal Direction', 'wind_gust_set_1': 'Wind Gust: mph', 'weather_condition_set_1d': 'Weather Condition', 'dew_point_temperature_set_1d': 'Dew Point Temperature: °F', 'visibility_set_1': 'Visibility: miles', 'ceiling_set_1': 'Ceiling Height: ft', 'pressure_set_1d': 'Station Pressure: mbar', 'sea_level_pressure_set_1d': 'Sea Level Pressure: mbar', 'altimeter_set_1': 'Altimeter Setting: inHg', 'pressure_tendency_set_1': 'Pressure Tendency', 'wet_bulb_temp_set_1d': 'Wet Bulb Temperature: °F', 'wind_direction_set_1': 'Wind Direction: °', 'peak_wind_speed_set_1': 'Peak Wind Speed: mph', 'peak_wind_direction_set_1': 'Peak Wind Direction: °'
   };
-  $('#data-table thead tr').html([`<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join(''));
-  $('#data-table tbody').html(allTimestamps.slice(0, 72).map((time, index) => {
+  const dataTableHead = document.querySelector('#data-table thead tr');
+  dataTableHead.innerHTML = [`<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join('');
+  elements.dataTableBody.innerHTML = allTimestamps.slice(0, 72).map((time, index) => {
     const parsedTime = luxon.DateTime.fromISO(time, { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a');
     return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[110px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => `<td class="border border-gray-200 p-3">${convertedObservations[v][index] || ''}</td>`).join('')}</tr>`;
-  }).join(''));
+  }).join('');
   updateSummaryTable(allObservations);
   const tableContainer = document.getElementById('data-table-container');
   tableContainer.style.opacity = '0';
@@ -181,31 +161,29 @@ function displayStationData(station) {
 
 async function fetchStationData(stationId, startDate, endDate) {
   if (!stationId) {
-    $('#data-table tbody').html('');
-    $('#summary-table-body').html('');
-    $('#data-view-title').text(`Station: Unknown | Last Updated: N/A`);
+    elements.dataTableBody.innerHTML = '';
+    elements.summaryTableBody.innerHTML = '';
+    document.getElementById('data-view-title').textContent = `Station: Unknown | Last Updated: N/A`;
     return false;
   }
   const formatDate = date => luxon.DateTime.fromJSDate(date).toUTC().toFormat('yyyyMMddHHmm');
-  const url = `${SYNOPTIC_API_BASE_URL}stations/timeseries?stid=${stationId}&start=${formatDate(startDate)}&end=${formatDate(endDate)}&token=${SYNOPTIC_API_TOKEN}&obtimezone=local`;
   try {
-    const response = await $.ajax({ url, method: 'GET' });
-    const data = response;
-    if (!data.STATION?.[0]?.OBSERVATIONS?.date_time) {
-      $('#data-table tbody').html('');
-      $('#summary-table-body').html('');
-      $('#data-view-title').text(`Station: ${stationId} | Last Updated: N/A`);
+    const response = await $.ajax({ url: `${SYNOPTIC_API_BASE_URL}stations/timeseries?stid=${stationId}&start=${formatDate(startDate)}&end=${formatDate(endDate)}&token=${SYNOPTIC_API_TOKEN}&obtimezone=local`, method: 'GET' });
+    if (!response.STATION?.[0]?.OBSERVATIONS?.date_time) {
+      elements.dataTableBody.innerHTML = '';
+      elements.summaryTableBody.innerHTML = '';
+      document.getElementById('data-view-title').textContent = `Station: ${stationId} | Last Updated: N/A`;
       return false;
     }
-    currentStationId = data.STATION[0].STID;
-    allObservations = data.STATION[0].OBSERVATIONS;
+    currentStationId = response.STATION[0].STID;
+    allObservations = response.STATION[0].OBSERVATIONS;
     allTimestamps = (allObservations.date_time || []).slice().reverse();
-    displayStationData(data.STATION[0]);
+    displayStationData(response.STATION[0]);
     return true;
   } catch (error) {
-    $('#data-table tbody').html('');
-    $('#summary-table-body').html('');
-    $('#data-view-title').text(`Station: ${stationId} | Last Updated: N/A`);
+    elements.dataTableBody.innerHTML = '';
+    elements.summaryTableBody.innerHTML = '';
+    document.getElementById('data-view-title').textContent = `Station: ${stationId} | Last Updated: N/A`;
     if (error.status === 429) {
       elements.locationError.textContent = 'Error: Synoptic API rate limit exceeded. Please try again later.';
       elements.locationError.classList.remove('hidden');
@@ -218,15 +196,19 @@ $(document).ready(() => {
   const API_KEY = '86f857c7c80b4ba3bfe3afdb9fefb393';
   const GEOCODING_API = 'https://api.opencagedata.com/geocode/v1/json';
   const NWS_API = 'https://api.weather.gov';
-  let selectedLocation = null;
-  let activeAlerts = [];
+  let selectedLocation = null, activeAlerts = [];
 
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  const getCachedData = (key, ttl = 60 * 60 * 1000) => {
+  // Hide tabs initially to ensure they don't show on the search screen
+  elements.tabs.classList.add('hidden');
+  elements.result.classList.add('hidden');
+  elements.starter.classList.remove('hidden');
+
+  const getCachedData = (key, ttl = 3600000) => {
     const cached = JSON.parse(localStorage.getItem(key));
     return cached && Date.now() - cached.timestamp < ttl ? cached.data : null;
   };
@@ -344,6 +326,8 @@ $(document).ready(() => {
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
       elements.starter.classList.remove('hidden');
+      elements.tabs.classList.add('hidden');
+      elements.result.classList.add('hidden');
       return;
     }
     elements.locationError.classList.add('hidden');
@@ -444,31 +428,30 @@ $(document).ready(() => {
         const periodTime = new Date(period.startTime);
         return periodTime >= now && periodTime <= twentyFourHoursLater;
       }).slice(0, 24);
-      for (const period of hourlyPeriods) {
+      hourlyPeriods.forEach(period => {
         const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
         const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
         const dewPoint = period.dewpoint?.value != null ? `${Math.round((period.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
         const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
-        const row = document.createElement('div');
-        row.className = 'hour-row';
-        row.innerHTML = `
-          <div class="main-row">
-            <div class="hour-cell font-medium">${timeStr}</div>
-            <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-            <div class="hour-cell"><img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto"></div>
-            <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+        elements.hourly.insertAdjacentHTML('beforeend', `
+          <div class="hour-row">
+            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto">
+            <div class="main-row">
+              <div class="hour-cell font-medium">${timeStr}</div>
+              <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+              <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+            </div>
+            <div class="additional-row">
+              <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
+              <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
+              <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
+              <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+            </div>
           </div>
-          <div class="additional-row">
-            <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
-            <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
-            <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
-            <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
-          </div>
-        `;
-        elements.hourly.appendChild(row);
-      }
+        `);
+      });
       elements.sevenDay.innerHTML = '<div class="seven-day-grid"></div>';
       const sevenDayGrid = elements.sevenDay.querySelector('.seven-day-grid');
       let dayCount = 0, i = 0;
@@ -479,36 +462,32 @@ $(document).ready(() => {
         const precipChance = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
         const detailedForecast = period.detailedForecast ? period.detailedForecast.substring(0, 100) + (period.detailedForecast.length > 100 ? '...' : '') : 'N/A';
-        const dayElement = document.createElement('div');
-        dayElement.className = 'day-item';
-        dayElement.innerHTML = `
-          <p class="font-medium">${period.name}</p>
-          <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
-          <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
-          <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
-          <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
-          <p>${forecastText}</p>
-          <p class="detailed-forecast">${detailedForecast}</p>
-        `;
-        sevenDayGrid.appendChild(dayElement);
+        sevenDayGrid.insertAdjacentHTML('beforeend', `
+          <div class="day-item">
+            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
+            <p class="font-medium">${period.name}</p>
+            <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
+            <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
+            <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
+            <p>${forecastText}</p>
+            <p class="detailed-forecast">${detailedForecast}</p>
+          </div>
+        `);
         i++;
         if (i >= periods.length || (i % 2 === 0 && periods[i-1].isDaytime !== periods[i-2].isDaytime)) dayCount++;
       }
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
-      elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => {
-        const severity = alert.properties.severity?.toLowerCase() || 'low';
-        return `
-          <div class="alert-item ${severity}" data-alert-index="${index}">
-            <p class="alert-title" data-alert-index="${index}">
-              <span>${alert.properties.headline || alert.properties.event || 'Alert'}</span>
-              <span class="severity ${severity}">${alert.properties.severity || 'Unknown'}</span>
-            </p>
-            <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
-          </div>
-        `;
-      }).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
+      elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => `
+        <div class="alert-item ${alert.properties.severity?.toLowerCase() || 'low'}" data-alert-index="${index}">
+          <p class="alert-title" data-alert-index="${index}">
+            <span>${alert.properties.headline || alert.properties.event || 'Alert'}</span>
+            <span class="severity ${alert.properties.severity?.toLowerCase() || 'low'}">${alert.properties.severity || 'Unknown'}</span>
+          </p>
+          <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
+        </div>
+      `).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
       elements.loading.classList.add('hidden');
       elements.result.classList.remove('hidden');
       elements.tabs.classList.remove('hidden');
@@ -585,6 +564,8 @@ $(document).ready(() => {
     elements.alerts.classList.remove('active');
     elements.settings.classList.remove('active');
     elements.locationInput.focus();
+    elements.autocomplete.classList.add('hidden');
+    elements.locationError.classList.add('hidden');
   });
 
   $(elements.tabs).on('click', '.tab-button', function() {
