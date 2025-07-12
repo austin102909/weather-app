@@ -15,12 +15,15 @@ const elements = {
   alertsCount: document.getElementById('alerts-count'),
   alertsButton: document.getElementById('alerts-button'),
   settingsButton: document.getElementById('settings-button'),
-  loading: document.getElementById('loading')
+  loading: document.getElementById('loading'),
+  autoLocate: document.getElementById('auto-locate'),
+  geolocationMessage: document.getElementById('geolocation-message'),
+  clock: document.getElementById('clock')
 };
 
 const SYNOPTIC_API_TOKEN = '81ebbb6ea61247ac85cb88a96d97fcf2';
 const SYNOPTIC_API_BASE_URL = 'https://api.synopticdata.com/v2/';
-let allObservations = [], allTimestamps = [], currentStationId = null;
+let allObservations = [], allTimestamps = [], currentStationId = null, currentTimezone = 'America/Chicago';
 const pressureTendencyCodes = {
   0: "Rising, then falling",
   1: "Rising slowly",
@@ -34,9 +37,15 @@ const pressureTendencyCodes = {
 };
 
 function getTemperatureColor(tempF) {
-  if (!tempF || tempF === 'N/A') return 'var(--temp-color)';
-  const value = parseFloat(tempF);
-  if (isNaN(value)) return 'var(--temp-color)';
+  if (!tempF || tempF === 'N/A' || typeof tempF !== 'string' || !tempF.includes('°F')) {
+    console.warn(`Invalid temperature value for coloring: ${tempF}`);
+    return 'var(--temp-color)';
+  }
+  const value = parseFloat(tempF.replace('°F', ''));
+  if (isNaN(value)) {
+    console.warn(`Failed to parse temperature: ${tempF}`);
+    return 'var(--temp-color)';
+  }
   const minTemp = 32, maxTemp = 100;
   const normalized = Math.min(Math.max((value - minTemp) / (maxTemp - minTemp), 0), 1);
   const r = Math.round(255 * normalized);
@@ -47,6 +56,11 @@ function getTemperatureColor(tempF) {
 function formatPrecipitation(value) {
   if (!value || value === 'N/A' || isNaN(parseFloat(value))) return 'N/A';
   return `${parseFloat(value).toFixed(2)}in`;
+}
+
+function updateClock() {
+  const now = luxon.DateTime.now().setZone(currentTimezone);
+  elements.clock.textContent = now.toFormat('h:mm:ss a');
 }
 
 function convertToAmericanUnits(observations, variables) {
@@ -60,7 +74,7 @@ function convertToAmericanUnits(observations, variables) {
     temperature: ['air_temp_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'wet_bulb_temperature_set_1', 'wet_bulb_temp_set_1d', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'],
     wind: ['wind_speed_set_1', 'wind_gust_set_1', 'peak_wind_speed_set_1'],
     pressure: ['pressure_set_1d', 'sea_level_pressure_set_1d'],
-    precip: ['precip_accum', 'precip_accum_24_hour_set_1'],
+    precip: ['precip_accum', 'precip_accum_24_hour_set_1', 'precip_accum_one_hour_set_1', 'precip_accum_three_hour_set_1', 'precip_accum_six_hour_set_1'],
     visibility: ['visibility_set_1'],
     ceiling: ['ceiling_set_1'],
     altimeter: ['altimeter_set_1'],
@@ -175,9 +189,10 @@ function updateSummaryTable(observations) {
   });
   $('#summary-table-body').html(excludedVars.map(v => {
     const label = labelMap[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    const cellClass = v.includes('air_temp') ? `font-bold temp-color` : '';
-    const tempStyle = v.includes('air_temp') ? `style="color: ${getTemperatureColor(lastValues[v])}"` : '';
-    return `<tr><td class="border border-gray-200 p-3">${label}</td><td class="${cellClass} border border-gray-200 p-3" ${tempStyle}>${lastValues[v]}</td></tr>`;
+    const cellClass = v.includes('air_temp') ? `font-bold temp-color` : v.includes('precip_accum') ? `font-bold precip-color` : '';
+    const style = v.includes('air_temp') ? `style="color: ${getTemperatureColor(lastValues[v])}"` :
+                  v.includes('precip_accum') ? `style="color: var(--precip-color)"` : '';
+    return `<tr><td class="border border-gray-200 p-3">${label}</td><td class="${cellClass} border border-gray-200 p-3" ${style}>${lastValues[v]}</td></tr>`;
   }).join(''));
 }
 
@@ -223,7 +238,7 @@ function displayStationData(station) {
       : Array(allTimestamps.length).fill(null);
   });
   const { converted: convertedObservations, lastNonNullValues } = convertToAmericanUnits(filteredObservations, sortedVariables);
-  $('#data-view-title').text(`Station: ${station.STID} | Last Updated: ${luxon.DateTime.now().setZone('America/Chicago').toFormat('MM/dd/yyyy HH:mm:ss')}`);
+  $('#data-view-title').text(`Station: ${station.STID} | Last Updated: ${luxon.DateTime.now().setZone(currentTimezone).toFormat('MM/dd/yyyy HH:mm:ss')}`);
   const officialLabels = {
     'air_temp_set_1': 'Air Temperature: °F',
     'relative_humidity_set_1': 'Relative Humidity: %',
@@ -246,16 +261,19 @@ function displayStationData(station) {
     'peak_wind_direction_set_1': 'Peak Wind Direction: °'
   };
   $('#data-table thead tr').html([
-    `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[150px]">Date and Time</th>`,
+    `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`,
     ...sortedVariables.map(v => {
       const label = officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       return `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${label}</th>`;
     })
   ].join(''));
   $('#data-table tbody').html(allTimestamps.slice(0, 72).map((time, index) => {
-    const parsedTime = luxon.DateTime.fromISO(time, { zone: 'America/Chicago' }).isValid ?
-      luxon.DateTime.fromISO(time, { zone: 'America/Chicago' }).toFormat('MM/dd/yyyy h:mm a') : '';
-    return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[150px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => `<td class="border border-gray-200 p-3">${convertedObservations[v][index] || ''}</td>`).join('')}</tr>`;
+    const parsedTime = luxon.DateTime.fromISO(time, { zone: currentTimezone }).isValid ?
+      luxon.DateTime.fromISO(time, { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a') : '';
+    return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[110px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => {
+      const value = convertedObservations[v][index] || '';
+      return `<td class="border border-gray-200 p-3">${value}</td>`;
+    }).join('')}</tr>`;
   }).join(''));
   updateSummaryTable(allObservations);
   const tableContainer = document.getElementById('data-table-container');
@@ -321,34 +339,20 @@ $(document).ready(() => {
   let selectedLocation = null, currentLocation = null;
   let activeAlerts = [];
 
+  const TOP_CITIES = [
+    { name: 'New York, NY, U.S.', lat: 40.7128, lng: -74.0060 },
+    { name: 'Los Angeles, CA, U.S.', lat: 34.0522, lng: -118.2437 },
+    { name: 'Chicago, IL, U.S.', lat: 41.8781, lng: -87.6298 },
+    { name: 'Houston, TX, U.S.', lat: 29.7604, lng: -95.3698 },
+    { name: 'Phoenix, AZ, U.S.', lat: 33.4484, lng: -112.0740 }
+  ];
+
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  const fetchWithRetry = async (url, retries = 3, delay = 2000) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        console.log(`Fetching: ${url}`);
-        const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
-        if (response.status === 429) {
-          console.log(`Rate limit exceeded for ${url}. Retrying after ${delay}ms...`);
-          elements.locationError.textContent = `Error: Rate limit exceeded for ${new URL(url).hostname}. Retrying...`;
-          elements.locationError.classList.remove('hidden');
-          await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-          continue;
-        }
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        console.log(`Successful response from ${url}: ${response.status}`);
-        return response;
-      } catch (error) {
-        console.error(`Fetch error for ${url}: ${error.message}`);
-        if (i === retries - 1) throw new Error('Max retries reached');
-      }
-    }
-  };
-
-  const getCachedData = (key, ttl = 15 * 60 * 1000) => {
+  const getCachedData = (key, ttl = 60 * 60 * 1000) => {
     const cached = JSON.parse(localStorage.getItem(key));
     if (cached && Date.now() - cached.timestamp < ttl) {
       console.log(`Using cached data for ${key}`);
@@ -362,6 +366,20 @@ $(document).ready(() => {
     localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
   };
 
+  const preloadTopCities = () => {
+    TOP_CITIES.forEach(city => {
+      const cacheKey = `geo_${city.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
+      if (!getCachedData(cacheKey)) {
+        setCachedData(cacheKey, { name: city.name, lat: city.lat, lng: city.lng });
+      }
+    });
+  };
+
+  preloadTopCities();
+
+  setInterval(updateClock, 1000);
+  updateClock();
+
   const reverseGeocode = async (lat, lng) => {
     const cacheKey = `reverse_${lat.toFixed(4)}_${lng.toFixed(4)}`;
     const cached = getCachedData(cacheKey);
@@ -370,6 +388,22 @@ $(document).ready(() => {
     const data = await response.json();
     if (!data.results.length) throw new Error('No geocoding results');
     const result = data.results[0].formatted.replace(/United States of America/, 'U.S.');
+    setCachedData(cacheKey, result);
+    return result;
+  };
+
+  const fetchGeocoding = async (query) => {
+    const cacheKey = `geo_${query.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
+    const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
+    const data = await response.json();
+    if (!data.results.length) throw new Error('No geocoding results');
+    const result = {
+      name: data.results[0].formatted.replace(/United States of America/, 'U.S.'),
+      lat: data.results[0].geometry.lat,
+      lng: data.results[0].geometry.lng
+    };
     setCachedData(cacheKey, result);
     return result;
   };
@@ -405,36 +439,81 @@ $(document).ready(() => {
   };
 
   const fetchCurrentConditions = async (stationsUrl) => {
-    const stationsResponse = await fetchWithRetry(stationsUrl);
-    const stationsData = await stationsResponse.json();
-    if (!stationsData.features?.length) throw new Error('No stations found');
-    const stationId = stationsData.features[0].properties.stationIdentifier;
-    const obsResponse = await fetchWithRetry(`${NWS_API}/stations/${stationId}/observations/latest`);
-    const obsData = await obsResponse.json();
-    if (!obsData.properties) throw new Error('No observation data');
-    return {
-      stationId,
-      currentConditions: obsData.properties.textDescription || 'N/A',
-      icon: obsData.properties.icon || `${NWS_API}/icons/land/day/skc?size=medium`,
-      nwsData: {
-        temperature: obsData.properties.temperature?.value != null ? `${Math.round((obsData.properties.temperature.value * 9/5) + 32)}°F` : 'N/A',
-        humidity: obsData.properties.relativeHumidity?.value != null ? `${obsData.properties.relativeHumidity.value}%` : 'N/A',
-        dewPoint: obsData.properties.dewpoint?.value != null ? `${Math.round((obsData.properties.dewpoint.value * 9/5) + 32)}°F` : 'N/A',
-        visibility: obsData.properties.visibility?.value != null ? (obsData.properties.visibility.value / 1609.34 >= 10 ? '10.0mi' : `${(obsData.properties.visibility.value / 1609.34).toFixed(1)}mi`) : 'N/A',
-        windSpeed: obsData.properties.windSpeed?.value != null ? `${Math.round((obsData.properties.windSpeed.value * 0.621371))}mph` : 'N/A',
-        windDirection: obsData.properties.windDirection?.value != null ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(obsData.properties.windDirection.value / 45) % 8] : 'N/A',
-        windGust: obsData.properties.windGust?.value != null ? `${Math.round((obsData.properties.windGust.value * 0.621371))}mph` : 'N/A',
-        pressure: obsData.properties.seaLevelPressure?.value != null ? `${(obsData.properties.seaLevelPressure.value / 100).toFixed(2)}mbar` : 'N/A',
-        lastUpdated: obsData.properties.timestamp ? new Date(obsData.properties.timestamp).toLocaleString() : 'N/A'
+    try {
+      const stationsResponse = await fetchWithRetry(stationsUrl);
+      const stationsData = await stationsResponse.json();
+      if (!stationsData.features?.length) throw new Error('No stations found');
+      const stationId = stationsData.features[0].properties.stationIdentifier;
+      const obsResponse = await fetchWithRetry(`${NWS_API}/stations/${stationId}/observations/latest`);
+      const obsData = await obsResponse.json();
+      if (!obsData.properties) throw new Error('No observation data');
+      return {
+        stationId,
+        currentConditions: obsData.properties.textDescription || 'N/A',
+        icon: obsData.properties.icon || `${NWS_API}/icons/land/day/skc?size=medium`,
+        nwsData: {
+          temperature: obsData.properties.temperature?.value != null ? `${Math.round((obsData.properties.temperature.value * 9/5) + 32)}°F` : 'N/A',
+          humidity: obsData.properties.relativeHumidity?.value != null ? `${obsData.properties.relativeHumidity.value}%` : 'N/A',
+          dewPoint: obsData.properties.dewpoint?.value != null ? `${Math.round((obsData.properties.dewpoint.value * 9/5) + 32)}°F` : 'N/A',
+          visibility: obsData.properties.visibility?.value != null ? (obsData.properties.visibility.value / 1609.34 >= 10 ? '10.0mi' : `${(obsData.properties.visibility.value / 1609.34).toFixed(1)}mi`) : 'N/A',
+          windSpeed: obsData.properties.windSpeed?.value != null ? `${Math.round((obsData.properties.windSpeed.value * 0.621371))}mph` : 'N/A',
+          windDirection: obsData.properties.windDirection?.value != null ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(obsData.properties.windDirection.value / 45) % 8] : 'N/A',
+          windGust: obsData.properties.windGust?.value != null ? `${Math.round((obsData.properties.windGust.value * 0.621371))}mph` : 'N/A',
+          pressure: obsData.properties.seaLevelPressure?.value != null ? `${(obsData.properties.seaLevelPressure.value / 100).toFixed(2)}mbar` : 'N/A',
+          lastUpdated: obsData.properties.timestamp ? new Date(obsData.properties.timestamp).toLocaleString() : 'N/A'
+        }
+      };
+    } catch (error) {
+      console.error(`Error fetching current conditions: ${error.message}`);
+      return {
+        stationId: null,
+        currentConditions: 'N/A',
+        icon: `${NWS_API}/icons/land/day/skc?size=medium`,
+        nwsData: {
+          temperature: 'N/A',
+          humidity: 'N/A',
+          dewPoint: 'N/A',
+          visibility: 'N/A',
+          windSpeed: 'N/A',
+          windDirection: 'N/A',
+          windGust: 'N/A',
+          pressure: 'N/A',
+          lastUpdated: 'N/A'
+        }
+      };
+    }
+  };
+
+  const fetchWithRetry = async (url, retries = 3, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`Fetching: ${url}`);
+        const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
+        if (response.status === 429) {
+          console.log(`Rate limit exceeded for ${url}. Retrying after ${delay}ms...`);
+          elements.locationError.textContent = `Error: Rate limit exceeded for ${new URL(url).hostname}. Retrying...`;
+          elements.locationError.classList.remove('hidden');
+          await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+          continue;
+        }
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        console.log(`Successful response from ${url}: ${response.status}`);
+        return response;
+      } catch (error) {
+        console.error(`Fetch error for ${url}: ${error.message}`);
+        if (i === retries - 1) throw new Error(`Max retries reached: ${error.message}`);
       }
-    };
+    }
   };
 
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
+    console.log(`Starting fetchWeather for location: ${location}, lat: ${lat}, lng: ${lng}, isGeolocation: ${isGeolocation}`);
     if (!isGeolocation && !location) {
+      console.error('No location provided');
       elements.locationError.textContent = 'Error: Please enter a valid location.';
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
+      elements.starter.classList.remove('hidden');
       return;
     }
     elements.locationError.classList.add('hidden');
@@ -459,6 +538,8 @@ $(document).ready(() => {
       lat = Number(lat.toFixed(4));
       lng = Number(lng.toFixed(4));
       if (isNaN(lat) || isNaN(lng)) throw new Error('Invalid coordinates');
+      console.log(`Resolved coordinates: ${lat}, ${lng}`);
+
       const pointsResponse = await fetchWithRetry(`${NWS_API}/points/${lat},${lng}`);
       const pointsData = await pointsResponse.json();
       if (!pointsData.properties) throw new Error('No points data');
@@ -466,6 +547,10 @@ $(document).ready(() => {
       const wfo = pointsData.properties.gridId;
       const gridX = pointsData.properties.gridX;
       const gridY = pointsData.properties.gridY;
+      currentTimezone = pointsData.properties.timeZone || 'America/Chicago';
+      console.log(`WFO: ${wfo}, Grid: ${gridX},${gridY}, Timezone: ${currentTimezone}`);
+      updateClock();
+
       const { stationId, currentConditions, icon, nwsData } = await fetchCurrentConditions(stationsUrl);
       currentStationId = stationId;
 
@@ -486,6 +571,7 @@ $(document).ready(() => {
         displayData = {
           temperature: lastNonNullValues['air_temp_set_1'] || nwsData.temperature,
           humidity: lastNonNullValues['relative_humidity_set_1'] || nwsData.humidity,
+          feelsLike: lastNonNullValues['heat_index_set_1d'] || 'N/A',
           dewPoint: lastNonNullValues['dew_point_temperature_set_1d'] || nwsData.dewPoint,
           visibility: lastNonNullValues['visibility_set_1'] || nwsData.visibility,
           windSpeed: lastNonNullValues['wind_speed_set_1'] || nwsData.windSpeed,
@@ -495,13 +581,14 @@ $(document).ready(() => {
           precip24Hour: lastNonNullValues['precip_accum_24_hour_set_1'] || 'N/A',
           tempHigh24Hour: lastNonNullValues['air_temp_high_24_hour_set_1'] || 'N/A',
           tempLow24Hour: lastNonNullValues['air_temp_low_24_hour_set_1'] || 'N/A',
-          lastUpdated: timestamps[0] ? luxon.DateTime.fromISO(timestamps[0], { zone: 'America/Chicago' }).toFormat('MM/dd/yyyy h:mm a') : nwsData.lastUpdated
+          lastUpdated: timestamps[0] ? luxon.DateTime.fromISO(timestamps[0], { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a') : nwsData.lastUpdated
         };
         lastUpdated = displayData.lastUpdated;
       } else {
         console.warn('Using NWS data as fallback for "Now" section due to Synoptic data failure');
         displayData = {
           ...nwsData,
+          feelsLike: 'N/A',
           precip24Hour: 'N/A',
           tempHigh24Hour: 'N/A',
           tempLow24Hour: 'N/A'
@@ -523,17 +610,17 @@ $(document).ready(() => {
           </div>
           <div class="grid grid-cols-2 gap-6 mt-6">
             <div class="bg-card p-4 rounded-lg shadow">
-              <p class="text-base mb-2">Feels Like: <span style="color: var(--temp-color)">${displayData.heat_index || displayData.temperature}</span></p>
+              <p class="text-base mb-2">Feels Like: <span style="color: ${getTemperatureColor(displayData.feelsLike)}">${displayData.feelsLike}</span></p>
               <p class="text-base mb-2">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
               <p class="text-base mb-2">Dew Point: <span style="color: var(--dewpoint-color)">${displayData.dewPoint}</span></p>
-              <p class="text-base mb-2">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed} ${displayData.windDirection}</span></p>
+              <p class="text-base mb-2">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed}</span> <span style="color: var(--wind-direction-color)">${displayData.windDirection}</span></p>
               <p class="text-base">Wind Gust: <span style="color: var(--wind-color)">${displayData.windGust}</span></p>
             </div>
             <div class="bg-card p-4 rounded-lg shadow">
               <p class="text-base mb-2">Pressure: <span style="color: var(--pressure-color)">${displayData.pressure}</span></p>
               <p class="text-base mb-2">24hr Precip: <span style="color: var(--precip-color)">${displayData.precip24Hour}</span></p>
-              <p class="text-base mb-2">24hr High: <span style="color: var(--temp-color)">${displayData.tempHigh24Hour}</span></p>
-              <p class="text-base">24hr Low: <span style="color: var(--temp-color)">${displayData.tempLow24Hour}</span></p>
+              <p class="text-base mb-2">24hr High: <span style="color: ${getTemperatureColor(displayData.tempHigh24Hour)}">${displayData.tempHigh24Hour}</span></p>
+              <p class="text-base">24hr Low: <span style="color: ${getTemperatureColor(displayData.tempLow24Hour)}">${displayData.tempLow24Hour}</span></p>
             </div>
           </div>
           <div class="bg-card p-4 rounded-lg shadow mt-6">
@@ -550,34 +637,51 @@ $(document).ready(() => {
       }).slice(0, 24);
       for (const period of hourlyPeriods) {
         const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
-        const chanceOfRain = period.probabilityOfPrecipitation?.value ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
+        const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
+        const dewPoint = period.dewpoint?.value != null ? `${Math.round((period.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
+        const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
+        const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
         const row = document.createElement('div');
         row.className = 'hour-row';
         row.innerHTML = `
-          <div class="hour-cell font-medium">${timeStr}</div>
-          <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-          <div class="hour-cell"><img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto w-10 h-10"></div>
-          <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
-          <div class="hour-cell">Rain: ${chanceOfRain}</div>
+          <div class="main-row">
+            <div class="hour-cell font-medium">${timeStr}</div>
+            <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+            <div class="hour-cell"><img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto"></div>
+            <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+          </div>
+          <div class="additional-row">
+            <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
+            <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
+            <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
+            <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+          </div>
         `;
         elements.hourly.appendChild(row);
       }
-      elements.sevenDay.innerHTML = '';
+      elements.sevenDay.innerHTML = '<div class="seven-day-grid"></div>';
+      const sevenDayGrid = elements.sevenDay.querySelector('.seven-day-grid');
       let dayCount = 0, i = 0;
       while (i < periods.length && dayCount < 7) {
         const period = periods[i];
         const forecastText = period.shortForecast || 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
+        const precipChance = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
+        const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
+        const detailedForecast = period.detailedForecast ? period.detailedForecast.substring(0, 100) + (period.detailedForecast.length > 100 ? '...' : '') : 'N/A';
         const dayElement = document.createElement('div');
         dayElement.className = 'day-item';
         dayElement.innerHTML = `
           <p class="font-medium">${period.name}</p>
           <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
-          <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1 w-10 h-10">
+          <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
+          <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
+          <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
           <p>${forecastText}</p>
+          <p class="detailed-forecast">${detailedForecast}</p>
         `;
-        elements.sevenDay.appendChild(dayElement);
+        sevenDayGrid.appendChild(dayElement);
         i++;
         if (i >= periods.length || (i % 2 === 0 && periods[i-1].isDaytime !== periods[i-2].isDaytime)) {
           dayCount++;
@@ -598,9 +702,11 @@ $(document).ready(() => {
           </div>
         `;
       }).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
+      console.log('Weather data fetched successfully, displaying UI');
       elements.loading.classList.add('hidden');
       elements.result.classList.remove('hidden');
       elements.tabs.classList.remove('hidden');
+      elements.starter.classList.add('hidden');
       selectedLocation = null;
     } catch (e) {
       console.error(`Weather fetch error: ${e.message}`);
@@ -610,197 +716,155 @@ $(document).ready(() => {
       elements.starter.classList.remove('hidden');
       elements.result.classList.add('hidden');
       elements.tabs.classList.add('hidden');
-      elements.alertsButton.classList.add('hidden');
     }
   }
 
-  const fetchGeocoding = async (location) => {
-    const cacheKey = location.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    const cached = getCachedData(cacheKey);
-    if (cached) return cached;
-    const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(location)}&key=${API_KEY}&countrycode=US&limit=3`);
-    const data = await response.json();
-    if (!data.results.length) throw new Error('No geocoding results');
-    const result = {
-      lat: data.results[0].geometry.lat,
-      lng: data.results[0].geometry.lng,
-      name: data.results[0].components.city || data.results[0].formatted.replace(/United States of America/, 'U.S.')
+  let lastQuery = '';
+  const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
     };
-    setCachedData(cacheKey, result);
-    return result;
   };
 
-  elements.locationInput.addEventListener('input', (() => {
-    let timeout;
-    return () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        const query = elements.locationInput.value.trim();
-        if (query.length < 3) {
-          elements.autocomplete.classList.add('hidden');
-          elements.locationError.classList.add('hidden');
-          return;
-        }
-        try {
-          const cacheKey = query.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-          const cached = getCachedData(cacheKey);
-          if (cached) {
-            elements.autocomplete.innerHTML = `<div class="autocomplete-item">${cached.name}</div>`;
-            elements.autocomplete.classList.remove('hidden');
-            return;
-          }
-          const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=3`);
-          const data = await response.json();
-          elements.autocomplete.innerHTML = '';
-          if (data.results.length) {
-            data.results.forEach(result => {
-              const formatted = result.formatted.replace(/United States of America/, 'U.S.');
-              const item = document.createElement('div');
-              item.className = 'autocomplete-item';
-              item.textContent = formatted;
-              item.addEventListener('click', () => {
-                elements.locationInput.value = formatted;
-                selectedLocation = result;
-                elements.autocomplete.classList.add('hidden');
-                elements.locationError.classList.add('hidden');
-                fetchWeather(formatted);
-              });
-              elements.autocomplete.appendChild(item);
-            });
-            elements.autocomplete.classList.remove('hidden');
-          } else {
-            elements.autocomplete.classList.add('hidden');
-            elements.locationError.textContent = 'No results found for the entered location.';
-            elements.locationError.classList.remove('hidden');
-          }
-        } catch (error) {
-          console.error(`Geocoding error: ${error.message}`);
-          elements.autocomplete.classList.add('hidden');
-          elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: OpenCage API rate limit exceeded. Please try again later.' : 'Error: Failed to fetch location data.';
-          elements.locationError.classList.remove('hidden');
-        }
-      }, 100);
-    };
-  })());
-
-  document.addEventListener('click', e => {
-    if (!elements.locationInput.contains(e.target) && !elements.autocomplete.contains(e.target) && !elements.header.contains(e.target)) {
+  const updateAutocomplete = debounce(async (query) => {
+    if (!query || query.length < 3 || query === lastQuery) {
       elements.autocomplete.classList.add('hidden');
+      return;
     }
-    if (!elements.alertsButton.contains(e.target) && !elements.alerts.contains(e.target)) {
-      elements.alerts.classList.remove('active');
+    lastQuery = query;
+    elements.autocomplete.classList.remove('hidden');
+    elements.autocomplete.innerHTML = '<div class="autocomplete-item">Searching...</div>';
+    try {
+      const cacheKey = `geo_${query.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
+      let data;
+      const cached = getCachedData(cacheKey);
+      if (cached) {
+        data = { results: [{ formatted: cached.name, geometry: { lat: cached.lat, lng: cached.lng } }] };
+      } else {
+        const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
+        data = await response.json();
+      }
+      if (data.results.length) {
+        elements.autocomplete.innerHTML = data.results.map(result => `
+          <div class="autocomplete-item" data-lat="${result.geometry.lat}" data-lng="${result.geometry.lng}" data-name="${result.formatted.replace(/United States of America/, 'U.S.')}">
+            ${result.formatted.replace(/United States of America/, 'U.S.')}
+          </div>
+        `).join('');
+      } else {
+        elements.autocomplete.innerHTML = '<div class="autocomplete-item">No results found</div>';
+      }
+    } catch (error) {
+      console.error(`Autocomplete error: ${error.message}`);
+      elements.autocomplete.innerHTML = '<div class="autocomplete-item">Error fetching suggestions</div>';
     }
-    if (!elements.settingsButton.contains(e.target) && !elements.settings.contains(e.target)) {
-      elements.settings.classList.remove('active');
+  }, 300);
+
+  elements.locationInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    updateAutocomplete(query);
+  });
+
+  elements.locationInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const query = elements.locationInput.value.trim();
+      if (query) {
+        elements.autocomplete.classList.add('hidden');
+        fetchWeather(query);
+      }
     }
+  });
+
+  $(document).on('click', '.autocomplete-item', function() {
+    const lat = $(this).data('lat');
+    const lng = $(this).data('lng');
+    const name = $(this).data('name');
+    selectedLocation = { geometry: { lat, lng }, formatted: name };
+    elements.locationInput.value = name;
+    elements.autocomplete.classList.add('hidden');
+    fetchWeather(name, lat, lng);
   });
 
   elements.header.addEventListener('click', () => {
-    if (currentLocation) {
-      elements.locationInput.value = currentLocation;
-      elements.starter.classList.remove('hidden');
-      elements.result.classList.add('hidden');
-      elements.settings.classList.remove('active');
-      elements.alerts.classList.remove('active');
-      elements.tabs.classList.add('hidden');
-      elements.autocomplete.classList.remove('hidden');
-      elements.alertsButton.classList.add('hidden');
-    }
-  });
-
-  document.querySelectorAll('.tab-button').forEach(button => {
-    button.addEventListener('click', () => {
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      button.classList.add('active');
-      const tabSection = document.getElementById(`${button.dataset.tab}-section`);
-      tabSection?.classList.add('active');
-      elements.settings.classList.remove('active');
-      elements.alerts.classList.remove('active');
-      if (button.dataset.tab === 'station-data' && currentStationId) {
-        const endDate = new Date();
-        const startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000);
-        fetchStationData(currentStationId, startDate, endDate);
-      }
-    });
-  });
-
-  const navigateBack = () => {
-    elements.settings.classList.remove('active');
-    elements.alerts.classList.remove('active');
-    if (currentLocation) {
-      elements.result.classList.remove('hidden');
-      elements.tabs.classList.remove('hidden');
-      elements.starter.classList.add('hidden');
-    } else {
-      elements.starter.classList.remove('hidden');
-      elements.tabs.classList.add('hidden');
-      elements.alertsButton.classList.add('hidden');
-    }
-  };
-
-  elements.alertsButton.addEventListener('click', () => {
-    elements.alerts.classList.toggle('active');
-    elements.settings.classList.remove('active');
-    elements.starter.classList.add('hidden');
+    elements.starter.classList.remove('hidden');
     elements.result.classList.add('hidden');
     elements.tabs.classList.add('hidden');
+    elements.alerts.classList.remove('active');
+    elements.settings.classList.remove('active');
+    elements.locationInput.focus();
   });
 
-  elements.settingsButton.addEventListener('click', () => {
-    elements.settings.classList.toggle('active');
-    elements.alerts.classList.remove('active');
-    elements.starter.classList.add('hidden');
+  $(elements.tabs).on('click', '.tab-button', function() {
+    const tab = $(this).data('tab');
+    $('.tab-button').removeClass('active');
+    $(this).addClass('active');
+    $('.tab-content').removeClass('active');
+    $(`#${tab}-section`).addClass('active');
+  });
+
+  $(elements.alertsList).on('click', '.alert-title', function() {
+    const index = $(this).data('alert-index');
+    $(`#alert-description-${index}`).toggleClass('active');
+  });
+
+  $(elements.alertsButton).on('click', () => {
+    elements.alerts.classList.add('active');
     elements.result.classList.add('hidden');
     elements.tabs.classList.add('hidden');
+    elements.starter.classList.add('hidden');
   });
 
-  document.querySelectorAll('.back-button').forEach(btn => btn.addEventListener('click', navigateBack));
+  $(elements.settingsButton).on('click', () => {
+    elements.settings.classList.add('active');
+    elements.result.classList.add('hidden');
+    elements.tabs.classList.add('hidden');
+    elements.starter.classList.add('hidden');
+  });
 
-  elements.themeToggle.addEventListener('change', e => {
+  $('.back-button').on('click', () => {
+    elements.alerts.classList.remove('active');
+    elements.settings.classList.remove('active');
+    elements.result.classList.remove('hidden');
+    elements.tabs.classList.remove('hidden');
+    elements.starter.classList.add('hidden');
+  });
+
+  elements.themeToggle.addEventListener('change', (e) => {
     const theme = e.target.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   });
 
-  elements.alertsList.addEventListener('click', e => {
-    const title = e.target.closest('.alert-title');
-    if (title) {
-      document.getElementById(`alert-description-${title.dataset.alertIndex}`)?.classList.toggle('active');
-    }
-  });
-
-  document.getElementById('auto-locate').addEventListener('click', () => {
-    const geolocationMessage = document.getElementById('geolocation-message');
-    geolocationMessage.classList.remove('hidden');
-    elements.locationError.classList.add('hidden');
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async position => {
-          const { latitude, longitude } = position.coords;
-          try {
-            const locationName = await reverseGeocode(latitude, longitude);
-            elements.locationInput.value = locationName;
-            await fetchWeather(locationName, latitude, longitude, true);
-            geolocationMessage.classList.add('hidden');
-          } catch (error) {
-            console.error(`Geolocation error: ${error.message}`);
-            geolocationMessage.classList.add('hidden');
-            elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: OpenCage API rate limit exceeded. Please try again later.' : 'Error: Failed to fetch location data.';
-            elements.locationError.classList.remove('hidden');
-          }
-        },
-        error => {
-          geolocationMessage.classList.add('hidden');
-          elements.locationError.textContent = 'Location access denied.';
-          elements.locationError.classList.remove('hidden');
-        },
-        { timeout: 10000 }
-      );
-    } else {
-      geolocationMessage.classList.add('hidden');
-      elements.locationError.textContent = 'Location access denied.';
+  elements.autoLocate.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      elements.locationError.textContent = 'Error: Geolocation is not supported by your browser.';
       elements.locationError.classList.remove('hidden');
+      return;
     }
+    elements.geolocationMessage.classList.remove('hidden');
+    elements.locationError.classList.add('hidden');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const locationName = await reverseGeocode(latitude, longitude);
+          elements.locationInput.value = locationName;
+          elements.geolocationMessage.classList.add('hidden');
+          fetchWeather(locationName, latitude, longitude, true);
+        } catch (error) {
+          console.error(`Geolocation error: ${error.message}`);
+          elements.geolocationMessage.classList.add('hidden');
+          elements.locationError.textContent = `Error: ${error.message}`;
+          elements.locationError.classList.remove('hidden');
+        }
+      },
+      (error) => {
+        console.error(`Geolocation error: ${error.message}`);
+        elements.geolocationMessage.classList.add('hidden');
+        elements.locationError.textContent = `Error: ${error.message}`;
+        elements.locationError.classList.remove('hidden');
+      }
+    );
   });
 });
