@@ -29,9 +29,9 @@ let allObservations = [], allTimestamps = [], currentStationId = null, currentTi
 const pressureTendencyCodes = { 0: "Rising, then falling", 1: "Rising slowly", 2: "Rising steadily", 3: "Rising quickly", 4: "Steady", 5: "Falling, then rising", 6: "Falling slowly", 7: "Falling steadily", 8: "Falling quickly" };
 
 function getTemperatureColor(tempF) {
-  if (!tempF || tempF === 'N/A' || !tempF.includes('°F')) return '#4e4e4e';
+  if (!tempF || tempF === 'N/A' || !tempF.includes('°F')) return 'var(--temp-color)';
   const value = parseFloat(tempF.replace('°F', ''));
-  if (isNaN(value)) return '#4e4e4e';
+  if (isNaN(value)) return 'var(--temp-color)';
   const tempPalette = {
     "120–115": "#4e4e4e", "115–110": "#696262", "110–105": "#857373", "105–100": "#a18383",
     "100–95": "#be928e", "95–90": "#da9c84", "90–85": "#e68d6a", "85–80": "#d05742",
@@ -44,13 +44,13 @@ function getTemperatureColor(tempF) {
     "-40–-45": "#b6d4d9", "-45–-50": "#80cbc5", "-50–-55": "#39a2a1", "-55–-60": "#106377"
   };
   const ranges = Object.keys(tempPalette).map(range => {
-    const [high, low] = range.split('–').map(Number);
-    return { min: low, max: high, color: tempPalette[range] };
+    const [min, max] = range.split('–').map(Number);
+    return { min, max, color: tempPalette[range] };
   }).sort((a, b) => a.min - b.min);
-  for (const range of ranges) {
-    if (value > range.min && value <= range.max) return range.color;
+  for (let range of ranges) {
+    if (value >= range.min && value < range.max) return range.color;
   }
-  return value <= ranges[0].min ? ranges[0].color : ranges[ranges.length - 1].color;
+  return ranges[0].color; // Default to coldest range if out of bounds
 }
 
 function formatPrecipitation(value) {
@@ -165,7 +165,7 @@ function displayStationData(station) {
   };
   const dataTableHead = document.querySelector('#data-table thead tr');
   dataTableHead.innerHTML = [`<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join('');
-  elements.dataTableBody.innerHTML = allTimestamps.slice(0, 72 * 3).map((time, index) => {
+  elements.dataTableBody.innerHTML = allTimestamps.slice(0, 72).map((time, index) => {
     const parsedTime = luxon.DateTime.fromISO(time, { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a');
     return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[110px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => `<td class="border border-gray-200 p-3">${convertedObservations[v][index] || ''}</td>`).join('')}</tr>`;
   }).join('');
@@ -218,10 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
-
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
+  // Initialize UI state with explicit hiding
   elements.starter.classList.remove('hidden');
   elements.result.classList.add('hidden');
   elements.tabs.classList.add('hidden');
@@ -233,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.starter.style.display = 'block';
   elements.result.style.display = 'none';
   elements.tabs.style.display = 'none';
+  console.log('Initial UI state: starter visible, tabs and result hidden');
 
   setInterval(updateClock, 1000);
   updateClock();
@@ -349,7 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
+    console.log('fetchWeather called with:', { location, lat, lng, isGeolocation });
     if (!location && !isGeolocation) {
+      console.error('FetchWeather Error: No location provided');
       elements.locationError.textContent = 'Error: Please enter a valid location.';
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
@@ -359,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
+      console.log('No location: starter shown, tabs/result hidden');
       return;
     }
     elements.locationError.classList.add('hidden');
@@ -369,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
     elements.tabs.style.display = 'none';
+    console.log('Search started: loading shown, starter/tabs/result hidden');
 
     const timeout = setTimeout(() => {
       elements.loading.classList.add('hidden');
@@ -380,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
+      console.log('Fetch timeout: starter shown, tabs/result hidden');
     }, 10000);
 
     try {
@@ -396,12 +402,17 @@ document.addEventListener('DOMContentLoaded', () => {
         lng = parseFloat(geoData.lng);
         locationName = geoData.name;
       }
-      if (isNaN(lat) || isNaN(lng)) throw new Error('Invalid coordinates');
+      if (isNaN(lat) || isNaN(lng)) {
+        console.error('FetchWeather Error: Invalid coordinates', { lat, lng });
+        throw new Error('Invalid coordinates');
+      }
       lat = Number(lat.toFixed(4));
       lng = Number(lng.toFixed(4));
+      console.log('Coordinates processed:', { lat, lng });
 
       const pointsResponse = await fetchWithRetry(`${NWS_API}/points/${lat},${lng}`);
       const pointsData = await pointsResponse.json();
+      console.log('Points data:', pointsData);
       if (!pointsData.properties) throw new Error('No points data');
       const { observationStations: stationsUrl, gridId: wfo, gridX, gridY, timeZone } = pointsData.properties;
       currentTimezone = timeZone || 'America/Chicago';
@@ -409,9 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const { stationId, currentConditions, icon, nwsData } = await fetchCurrentConditions(stationsUrl);
       currentStationId = stationId;
+      console.log('Current conditions:', { stationId, currentConditions, nwsData });
 
-      const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days
+      const endDate = new Date(), startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000);
       const synopticSuccess = await fetchStationData(stationId, startDate, endDate);
       let displayData = nwsData, lastUpdated = nwsData.lastUpdated;
       if (synopticSuccess && allObservations && allTimestamps.length) {
@@ -436,40 +447,37 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         displayData = { ...nwsData, feelsLike: 'N/A', precip24Hour: 'N/A', tempHigh24Hour: 'N/A', tempLow24Hour: 'N/A' };
       }
+      console.log('Display data:', displayData);
+
+      document.getElementById('current-location').textContent = locationName;
+      document.getElementById('current-temp').textContent = displayData.temperature;
+      document.getElementById('current-temp').style.color = getTemperatureColor(displayData.temperature);
+      document.getElementById('current-conditions').textContent = currentConditions;
+      document.getElementById('current-icon').src = icon;
+      document.getElementById('feels-like').textContent = displayData.feelsLike;
+      document.getElementById('feels-like').style.color = getTemperatureColor(displayData.feelsLike);
+      document.getElementById('humidity').textContent = displayData.humidity;
+      document.getElementById('dew-point').textContent = displayData.dewPoint;
+      document.getElementById('dew-point').style.color = getTemperatureColor(displayData.dewPoint);
+      document.getElementById('wind-speed').textContent = displayData.windSpeed;
+      document.getElementById('wind-direction').textContent = displayData.windDirection;
+      document.getElementById('pressure').textContent = displayData.pressure;
+      document.getElementById('precip-24hr').textContent = displayData.precip24Hour;
+      document.getElementById('temp-high-24hr').textContent = displayData.tempHigh24Hour;
+      document.getElementById('temp-high-24hr').style.color = getTemperatureColor(displayData.tempHigh24Hour);
+      document.getElementById('temp-low-24hr').textContent = displayData.tempLow24Hour;
+      document.getElementById('temp-low-24hr').style.color = getTemperatureColor(displayData.tempLow24hr);
+      document.getElementById('last-updated').textContent = lastUpdated;
+      document.getElementById('coordinates').textContent = `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
       const hourlyData = await fetchHourlyForecast(wfo, gridX, gridY);
+      console.log('Hourly data:', hourlyData.properties.periods.slice(0, 3));
       activeAlerts = await fetchAlerts(lat, lng);
+      console.log('Alerts:', activeAlerts.length, activeAlerts);
       const forecastData = await fetchSevenDayForecast(wfo, gridX, gridY);
+      console.log('7-day forecast:', forecastData.properties.periods.slice(0, 3));
       const periods = forecastData.properties.periods;
 
-      elements.header.textContent = locationName;
-      elements.now.innerHTML = `
-        <div class="weather-card">
-          <div class="bg-card p-6 rounded-lg shadow flex flex-col items-center">
-            <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
-            <p class="text-2xl font-semibold mt-4">${currentConditions}</p>
-            <img src="${icon}" alt="${currentConditions}" class="mt-6 w-300 h-300">
-          </div>
-          <div class="grid grid-cols-2 gap-6 mt-6">
-            <div class="bg-card p-6 rounded-lg shadow">
-              <p class="text-xl mb-4">Feels Like: <span style="color: ${getTemperatureColor(displayData.feelsLike)}">${displayData.feelsLike}</span></p>
-              <p class="text-xl mb-4">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
-              <p class="text-xl mb-4">Dew Point: <span style="color: var(--dewpoint-color)">${displayData.dewPoint}</span></p>
-              <p class="text-xl">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed}</span> <span style="color: var(--wind-direction-color)">${displayData.windDirection}</span></p>
-            </div>
-            <div class="bg-card p-6 rounded-lg shadow">
-              <p class="text-xl mb-4">Pressure: <span style="color: var(--pressure-color)">${displayData.pressure}</span></p>
-              <p class="text-xl mb-4">24hr Precip: <span style="color: var(--precip-color)">${displayData.precip24Hour}</span></p>
-              <p class="text-xl mb-4">24hr High: <span style="color: ${getTemperatureColor(displayData.tempHigh24Hour)}">${displayData.tempHigh24Hour}</span></p>
-              <p class="text-xl">24hr Low: <span style="color: ${getTemperatureColor(displayData.tempLow24Hour)}">${displayData.tempLow24Hour}</span></p>
-            </div>
-          </div>
-          <div class="bg-card p-6 rounded-lg shadow mt-6">
-            <p class="text-xl">Last Updated: <span>${lastUpdated}</span></p>
-            <p class="text-lg text-gray-500 mt-2" style="color: var(--text-color)">Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
-          </div>
-        </div>
-      `;
       elements.hourly.innerHTML = '';
       const now = new Date(), twentyFourHoursLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const hourlyPeriods = hourlyData.properties.periods.filter(period => {
@@ -484,58 +492,67 @@ document.addEventListener('DOMContentLoaded', () => {
         const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
         elements.hourly.insertAdjacentHTML('beforeend', `
-          <div class="hour-row">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
-            <div class="hour-content">
-              <div class="hour-top-row">
-                <div class="hour-cell">${timeStr}</div>
-                <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-                <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+          <div class="hour-row flex flex-col items-center p-2 border-b border-gray-300 bg-[var(--card-bg)] rounded-lg mb-2">
+            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="w-16 h-16 mb-2">
+            <div class="text-center">
+              <div class="hour-top-row flex flex-col gap-1">
+                <div class="hour-cell text-1.5rem font-bold">${timeStr}</div>
+                <div class="hour-cell text-1.5rem font-bold temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+                <div class="hour-cell text-1.5rem font-semibold">${period.shortForecast || 'N/A'}</div>
               </div>
-              <div class="hour-bottom-row">
-                <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
-                <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
-                <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
-                <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+              <div class="hour-bottom-row flex flex-col gap-1 mt-2">
+                <div class="hour-cell text-1.2rem additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
+                <div class="hour-cell text-1.2rem additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
+                <div class="hour-cell text-1.2rem additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
+                <div class="hour-cell text-1.2rem additional" style="color: var(--wind-color)">Wind: ${wind}</div>
               </div>
             </div>
           </div>
         `);
       });
+
       elements.sevenDay.innerHTML = '';
       const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
-      const forecastByDay = {};
-      periods.forEach(period => {
-        const periodDate = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).startOf('day').toISODate();
-        if (!forecastByDay[periodDate]) forecastByDay[periodDate] = { day: null, night: null };
-        if (period.isDaytime) forecastByDay[periodDate].day = period;
-        else forecastByDay[periodDate].night = period;
-      });
-      Object.entries(forecastByDay).sort((a, b) => new Date(a[0]) - new Date(b[0])).forEach(([date, forecasts], index) => {
-        const dayName = luxon.DateTime.fromISO(date, { zone: currentTimezone }).toFormat('EEEE, MMMM d');
-        const dayHtml = forecasts.day ? `
-          <p class="font-medium">${dayName}</p>
-          <img src="${forecasts.day.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecasts.day.shortForecast || 'Clear'}">
-          <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(`${forecasts.day.temperature}°F`)}">${forecasts.day.temperature}°F</span></p>
-          <p>Precip: <span style="color: var(--precip-color)">${forecasts.day.probabilityOfPrecipitation?.value || 'N/A'}%</span></p>
-          <p>Wind: <span style="color: var(--wind-color)">${forecasts.day.windSpeed} ${forecasts.day.windDirection}</span></p>
-          <p>${forecasts.day.shortForecast}</p>
-        ` : '<p>No day data</p>';
-        const nightHtml = forecasts.night ? `
-          <p class="font-medium">${dayName} Night</p>
-          <img src="${forecasts.night.icon || `${NWS_API}/icons/land/night/skc?size=medium`}" alt="${forecasts.night.shortForecast || 'Clear'}">
-          <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(`${forecasts.night.temperature}°F`)}">${forecasts.night.temperature}°F</span></p>
-          <p>Precip: <span style="color: var(--precip-color)">${forecasts.night.probabilityOfPrecipitation?.value || 'N/A'}%</span></p>
-          <p>Wind: <span style="color: var(--wind-color)">${forecasts.night.windSpeed} ${forecasts.night.windDirection}</span></p>
-          <p>${forecasts.night.shortForecast}</p>
-        ` : '<p>No night data</p>';
+      const groupedPeriods = [];
+      for (let i = 0; i < periods.length; i += 2) {
+        groupedPeriods.push(periods.slice(i, i + 2));
+      }
+      groupedPeriods.forEach((dayPair, index) => {
+        const dayPeriod = dayPair[0];
+        const nightPeriod = dayPair[1] || { ...dayPair[0], isDaytime: false, startTime: luxon.DateTime.fromISO(dayPair[0].startTime).plus({ days: 1 }).startOf('day').toISO() };
+        const dayDate = luxon.DateTime.fromISO(dayPeriod.startTime, { zone: currentTimezone }).startOf('day');
+        const isPast = dayDate < today;
+        const dayForecastText = dayPeriod.shortForecast || 'N/A';
+        const nightForecastText = nightPeriod.shortForecast || 'N/A';
+        const dayTempF = dayPeriod.temperatureUnit === 'F' ? `${dayPeriod.temperature}°F` : `${Math.round((dayPeriod.temperature * 9/5) + 32)}°F`;
+        const nightTempF = nightPeriod.temperatureUnit === 'F' ? `${nightPeriod.temperature}°F` : `${Math.round((nightPeriod.temperature * 9/5) + 32)}°F`;
+        const dayPrecipChance = dayPeriod.probabilityOfPrecipitation?.value != null ? `${dayPeriod.probabilityOfPrecipitation.value}%` : 'N/A';
+        const nightPrecipChance = nightPeriod.probabilityOfPrecipitation?.value != null ? `${nightPeriod.probabilityOfPrecipitation.value}%` : 'N/A';
+        const dayWind = dayPeriod.windSpeed && dayPeriod.windDirection ? `${dayPeriod.windSpeed} ${dayPeriod.windDirection}` : 'N/A';
+        const nightWind = nightPeriod.windSpeed && nightPeriod.windDirection ? `${nightPeriod.windSpeed} ${nightPeriod.windDirection}` : 'N/A';
+        const dayName = luxon.DateTime.fromISO(dayPeriod.startTime, { zone: currentTimezone }).toFormat('EEEE, MMMM d');
         elements.sevenDay.insertAdjacentHTML('beforeend', `
-          <div class="forecast-row grid grid-cols-2 gap-4 mb-6">
-            <div class="day-forecast bg-card p-4 rounded">${dayHtml}</div>
-            <div class="night-forecast bg-card p-4 rounded">${nightHtml}</div>
+          <div class="day-row flex justify-between mb-4">
+            <div class="day-item w-1/2 p-4 bg-[var(--card-bg)] rounded-lg shadow-md">
+              <p class="font-medium text-xl">${dayName} (Day)</p>
+              <img src="${dayPeriod.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${dayForecastText}" class="w-24 h-24 mx-auto mt-2 mb-2">
+              <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(dayTempF)}">${dayTempF}</span></p>
+              <p>Precip: <span style="color: var(--precip-color)">${dayPrecipChance}</span></p>
+              <p>Wind: <span style="color: var(--wind-color)">${dayWind}</span></p>
+              <p class="text-sm">${dayForecastText}</p>
+            </div>
+            <div class="night-item w-1/2 p-4 bg-[var(--card-bg)] rounded-lg shadow-md">
+              <p class="font-medium text-xl">${dayName} (Night)</p>
+              <img src="${nightPeriod.icon || `${NWS_API}/icons/land/night/skc?size=medium`}" alt="${nightForecastText}" class="w-24 h-24 mx-auto mt-2 mb-2">
+              <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(nightTempF)}">${nightTempF}</span></p>
+              <p>Precip: <span style="color: var(--precip-color)">${nightPrecipChance}</span></p>
+              <p>Wind: <span style="color: var(--wind-color)">${nightWind}</span></p>
+              <p class="text-sm">${nightForecastText}</p>
+            </div>
           </div>
         `);
       });
+
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
@@ -549,6 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
 
+      // Ensure "Now" tab is active
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       const nowTab = document.querySelector('[data-tab="now"]');
@@ -569,6 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.result.style.opacity = '1';
         elements.tabs.style.opacity = '1';
         elements.starter.style.opacity = '0';
+        console.log('Weather data rendered: starter hidden, tabs/result shown');
       }, 10);
     } catch (e) {
       console.error('FetchWeather Error:', e.message);
@@ -582,6 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
+      console.log('Fetch error: starter shown, tabs/result hidden');
     }
   }
 
@@ -637,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (item) {
       const lat = parseFloat(item.dataset.lat), lng = parseFloat(item.dataset.lng), name = item.dataset.name;
       if (isNaN(lat) || isNaN(lng)) {
+        console.error('Autocomplete Click Error: Invalid coordinates', { lat, lng });
         elements.locationError.textContent = 'Error: Invalid location coordinates.';
         elements.locationError.classList.remove('hidden');
         return;
@@ -660,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.locationInput.focus();
     elements.autocomplete.classList.add('hidden');
     elements.locationError.classList.add('hidden');
+    console.log('Header clicked: starter shown, tabs/result hidden');
   });
 
   document.querySelectorAll('.tab-button').forEach(button => {
@@ -669,6 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.add('active');
       const tabSection = document.getElementById(`${button.dataset.tab}-section`);
       if (tabSection) tabSection.classList.add('active');
+      console.log(`Tab switched to: ${button.dataset.tab}`);
     });
   });
 
@@ -687,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
     elements.starter.style.display = 'none';
+    console.log('Alerts button clicked: alerts shown, starter/tabs/result hidden');
   });
 
   elements.settingsButton.addEventListener('click', () => {
@@ -697,6 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
     elements.starter.style.display = 'none';
+    console.log('Settings button clicked: settings shown, starter/tabs/result hidden');
   });
 
   document.querySelectorAll('.back-button').forEach(button => {
@@ -709,11 +734,13 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.tabs.style.display = 'flex';
       elements.starter.classList.add('hidden');
       elements.starter.style.display = 'none';
+      // Ensure "Now" tab is active
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       const nowTab = document.querySelector('[data-tab="now"]');
       if (nowTab) nowTab.classList.add('active');
       elements.now.classList.add('active');
+      console.log('Back button clicked: tabs/result shown, starter hidden');
     });
   });
 
@@ -721,10 +748,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const theme = e.target.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    console.log(`Theme toggled to: ${theme}`);
   });
 
   elements.autoLocate.addEventListener('click', () => {
     if (!navigator.geolocation) {
+      console.error('Geolocation Error: Not supported by browser');
       elements.locationError.textContent = 'Error: Geolocation is not supported by your browser.';
       elements.locationError.classList.remove('hidden');
       return;
@@ -740,12 +769,14 @@ document.addEventListener('DOMContentLoaded', () => {
           elements.geolocationMessage.classList.add('hidden');
           fetchWeather(locationName, latitude, longitude, true);
         } catch (error) {
+          console.error('Geolocation Error:', error.message);
           elements.geolocationMessage.classList.add('hidden');
           elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${error.message}`;
           elements.locationError.classList.remove('hidden');
         }
       },
       (error) => {
+        console.error(`Geolocation Error: Denied - ${error.message}`);
         elements.geolocationMessage.classList.add('hidden');
         elements.locationError.textContent = `Error: Geolocation denied - ${error.message}`;
         elements.locationError.classList.remove('hidden');
