@@ -204,22 +204,22 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  // Initialize UI state
-  elements.tabs.classList.add('hidden');
-  elements.result.classList.add('hidden');
+  // Initialize UI state with explicit hiding
   elements.starter.classList.remove('hidden');
+  elements.result.classList.add('hidden');
+  elements.tabs.classList.add('hidden');
   elements.alerts.classList.remove('active');
   elements.settings.classList.remove('active');
   elements.autocomplete.classList.add('hidden');
   elements.locationError.classList.add('hidden');
   elements.loading.classList.add('hidden');
+  elements.starter.style.display = 'block';
+  elements.result.style.display = 'none';
+  elements.tabs.style.display = 'none';
+  console.log('Initial UI state: starter visible, tabs and result hidden');
 
-  // Ensure tabs are hidden on search menu
-  setTimeout(() => {
-    elements.tabs.classList.add('hidden');
-    elements.result.classList.add('hidden');
-    elements.starter.classList.remove('hidden');
-  }, 0);
+  setInterval(updateClock, 1000);
+  updateClock();
 
   const getCachedData = (key, ttl = 3600000) => {
     const cached = JSON.parse(localStorage.getItem(key));
@@ -227,9 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const setCachedData = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
-
-  setInterval(updateClock, 1000);
-  updateClock();
 
   const fetchWithRetry = async (url, retries = 3, delay = 2000) => {
     for (let i = 0; i < retries; i++) {
@@ -343,24 +340,35 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
       elements.starter.classList.remove('hidden');
-      elements.tabs.classList.add('hidden');
+      elements.starter.style.display = 'block';
       elements.result.classList.add('hidden');
+      elements.result.style.display = 'none';
+      elements.tabs.classList.add('hidden');
+      elements.tabs.style.display = 'none';
+      console.log('No location: starter shown, tabs/result hidden');
       return;
     }
     elements.locationError.classList.add('hidden');
     elements.loading.classList.remove('hidden');
     elements.starter.classList.add('hidden');
+    elements.starter.style.display = 'none';
     elements.result.classList.add('hidden');
+    elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
+    elements.tabs.style.display = 'none';
+    console.log('Search started: loading shown, starter/tabs/result hidden');
 
-    // Timeout for loading state
     const timeout = setTimeout(() => {
       elements.loading.classList.add('hidden');
       elements.locationError.textContent = 'Error: Data fetch timed out. Please try again.';
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
-      elements.tabs.classList.add('hidden');
+      elements.starter.style.display = 'block';
       elements.result.classList.add('hidden');
+      elements.result.style.display = 'none';
+      elements.tabs.classList.add('hidden');
+      elements.tabs.style.display = 'none';
+      console.log('Fetch timeout: starter shown, tabs/result hidden');
     }, 10000);
 
     try {
@@ -537,14 +545,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
       clearTimeout(timeout);
       elements.loading.classList.add('hidden');
-      elements.result.classList.remove('hidden');
-      elements.tabs.classList.remove('hidden');
       elements.starter.classList.add('hidden');
+      elements.starter.style.display = 'none';
+      elements.result.classList.remove('hidden');
+      elements.result.style.display = 'block';
+      elements.result.style.zIndex = '10';
+      elements.tabs.classList.remove('hidden');
+      elements.tabs.style.display = 'flex';
+      elements.tabs.style.zIndex = '30';
       setTimeout(() => {
         elements.result.style.opacity = '1';
         elements.tabs.style.opacity = '1';
+        elements.starter.style.opacity = '0';
+        console.log('Weather data rendered: starter hidden, tabs/result shown');
       }, 10);
-      console.log('Weather data rendered successfully');
     } catch (e) {
       console.error('FetchWeather Error:', e.message);
       clearTimeout(timeout);
@@ -552,8 +566,12 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${e.message}`;
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
+      elements.starter.style.display = 'block';
       elements.result.classList.add('hidden');
+      elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
+      elements.tabs.style.display = 'none';
+      console.log('Fetch error: starter shown, tabs/result hidden');
     }
   }
 
@@ -623,14 +641,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   elements.header.addEventListener('click', () => {
     elements.starter.classList.remove('hidden');
+    elements.starter.style.display = 'block';
     elements.result.classList.add('hidden');
+    elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
+    elements.tabs.style.display = 'none';
     elements.alerts.classList.remove('active');
     elements.settings.classList.remove('active');
     elements.locationInput.focus();
     elements.autocomplete.classList.add('hidden');
     elements.locationError.classList.add('hidden');
-    setTimeout(() => elements.tabs.classList.add('hidden'), 0);
+    console.log('Header clicked: starter shown, tabs/result hidden');
   });
 
   document.querySelectorAll('.tab-button').forEach(button => {
@@ -654,15 +675,23 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.alertsButton.addEventListener('click', () => {
     elements.alerts.classList.add('active');
     elements.result.classList.add('hidden');
+    elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
+    elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
+    elements.starter.style.display = 'none';
+    console.log('Alerts button clicked: alerts shown, starter/tabs/result hidden');
   });
 
   elements.settingsButton.addEventListener('click', () => {
     elements.settings.classList.add('active');
     elements.result.classList.add('hidden');
+    elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
+    elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
+    elements.starter.style.display = 'none';
+    console.log('Settings button clicked: settings shown, starter/tabs/result hidden');
   });
 
   document.querySelectorAll('.back-button').forEach(button => {
@@ -670,14 +699,18 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.alerts.classList.remove('active');
       elements.settings.classList.remove('active');
       elements.result.classList.remove('hidden');
+      elements.result.style.display = 'block';
       elements.tabs.classList.remove('hidden');
+      elements.tabs.style.display = 'flex';
       elements.starter.classList.add('hidden');
+      elements.starter.style.display = 'none';
       // Ensure "Now" tab is active
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       const nowTab = document.querySelector('[data-tab="now"]');
       if (nowTab) nowTab.classList.add('active');
       elements.now.classList.add('active');
+      console.log('Back button clicked: tabs/result shown, starter hidden');
     });
   });
 
@@ -685,6 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const theme = e.target.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    console.log(`Theme toggled to: ${theme}`);
   });
 
   elements.autoLocate.addEventListener('click', () => {
