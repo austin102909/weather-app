@@ -44,13 +44,13 @@ function getTemperatureColor(tempF) {
     "-40–-45": "#b6d4d9", "-45–-50": "#80cbc5", "-50–-55": "#39a2a1", "-55–-60": "#106377"
   };
   const ranges = Object.keys(tempPalette).map(range => {
-    const [min, max] = range.split('–').map(Number);
+    const [max, min] = range.split('–').map(Number);
     return { min, max, color: tempPalette[range] };
-  }).sort((a, b) => a.min - b.min);
+  }).sort((a, b) => b.min - a.min); // Sort descending to check higher ranges first
   for (let range of ranges) {
     if (value >= range.min && value < range.max) return range.color;
   }
-  return ranges[0].color; // Default to coldest range if out of bounds
+  return value >= 120 ? tempPalette["120–115"] : tempPalette["-55–-60"]; // Handle out-of-range values
 }
 
 function formatPrecipitation(value) {
@@ -165,7 +165,7 @@ function displayStationData(station) {
   };
   const dataTableHead = document.querySelector('#data-table thead tr');
   dataTableHead.innerHTML = [`<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join('');
-  elements.dataTableBody.innerHTML = allTimestamps.slice(0, 72).map((time, index) => {
+  elements.dataTableBody.innerHTML = allTimestamps.map((time, index) => {
     const parsedTime = luxon.DateTime.fromISO(time, { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a');
     return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[110px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => `<td class="border border-gray-200 p-3">${convertedObservations[v][index] || ''}</td>`).join('')}</tr>`;
   }).join('');
@@ -221,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  // Initialize UI state with explicit hiding
   elements.starter.classList.remove('hidden');
   elements.result.classList.add('hidden');
   elements.tabs.classList.add('hidden');
@@ -460,16 +459,12 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.header.textContent = locationName;
       elements.now.innerHTML = `
         <div class="weather-card">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-            <div class="bg-card p-6 rounded-lg shadow">
-              <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
-              <p class="text-2xl font-semibold mt-4">${currentConditions}</p>
-            </div>
-            <div class="bg-card p-6 rounded-lg shadow">
-              <img src="${icon}" alt="${currentConditions}" class="mx-auto w-48 h-48">
-            </div>
+          <div class="text-center">
+            <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
+            <p class="text-2xl font-semibold mt-2">${currentConditions}</p>
+            <img src="${icon}" alt="${currentConditions}" class="mx-auto w-64 h-64 mt-4">
           </div>
-          <div class="grid grid-cols-2 gap-6 mt-6">
+          <div class="grid grid-cols-2 gap-4 mt-6">
             <div class="bg-card p-6 rounded-lg shadow">
               <p class="text-xl mb-4">Feels Like: <span style="color: ${getTemperatureColor(displayData.feelsLike)}">${displayData.feelsLike}</span></p>
               <p class="text-xl mb-4">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
@@ -523,31 +518,61 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       elements.sevenDay.innerHTML = '';
       const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
-      periods.forEach((period, index) => {
-        const periodDate = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).startOf('day');
-        const isDay = period.isDaytime;
-        const isPast = periodDate < today;
-        const forecastText = period.shortForecast || 'N/A';
-        const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
-        const precipChance = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
-        const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
-        const detailedForecast = period.detailedForecast || 'N/A';
-        const dayName = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).toFormat('EEEE');
-        const title = `${dayName}${isDay ? '' : ' Night'}`;
+      const dailyPeriods = [];
+      let currentDay = null;
+      periods.forEach(period => {
+        const periodDate = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).startOf('day').toISODate();
+        if (!currentDay || currentDay.date !== periodDate) {
+          currentDay = { date: periodDate, day: null, night: null };
+          dailyPeriods.push(currentDay);
+        }
+        if (period.isDaytime) {
+          currentDay.day = period;
+        } else {
+          currentDay.night = period;
+        }
+      });
+      dailyPeriods.forEach((dayPeriod, index) => {
+        const dayName = luxon.DateTime.fromISO(dayPeriod.date, { zone: currentTimezone }).toFormat('EEEE, MMM d');
+        const dayData = dayPeriod.day || {};
+        const nightData = dayPeriod.night || {};
+        const dayTemp = dayData.temperature ? (dayData.temperatureUnit === 'F' ? `${dayData.temperature}°F` : `${Math.round((dayData.temperature * 9/5) + 32)}°F`) : 'N/A';
+        const nightTemp = nightData.temperature ? (nightData.temperatureUnit === 'F' ? `${nightData.temperature}°F` : `${Math.round((nightData.temperature * 9/5) + 32)}°F`) : 'N/A';
+        const dayPrecip = dayData.probabilityOfPrecipitation?.value != null ? `${dayData.probabilityOfPrecipitation.value}%` : 'N/A';
+        const nightPrecip = nightData.probabilityOfPrecipitation?.value != null ? `${nightData.probabilityOfPrecipitation.value}%` : 'N/A';
+        const dayWind = dayData.windSpeed && dayData.windDirection ? `${dayData.windSpeed} ${dayData.windDirection}` : 'N/A';
+        const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${nightData.windDirection}` : 'N/A';
+        const dayForecast = dayData.shortForecast || 'N/A';
+        const nightForecast = nightData.shortForecast || 'N/A';
+        const dayDetailed = dayData.detailedForecast || 'N/A';
+        const nightDetailed = nightData.detailedForecast || 'N/A';
+        const dayIcon = dayData.icon || `${NWS_API}/icons/land/day/skc?size=medium`;
+        const nightIcon = nightData.icon || `${NWS_API}/icons/land/night/skc?size=medium`;
         elements.sevenDay.insertAdjacentHTML('beforeend', `
-          <div class="day-item ${index % 2 === 0 ? 'mr-4' : ''}">
-            <p class="font-medium">${title}</p>
-            <img src="${period.icon || `${NWS_API}/icons/land/${isDay ? 'day' : 'night'}/skc?size=medium`}" alt="${forecastText}" class="mt-2">
-            <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
-            <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
-            <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
-            <p>${forecastText}</p>
-            <p class="detailed-forecast">${detailedForecast}</p>
+          <div class="day-row">
+            <h3 class="day-title">${dayName}</h3>
+            <div class="day-night-container">
+              <div class="day-item">
+                <p class="font-medium">Day</p>
+                <img src="${dayIcon}" alt="${dayForecast}" class="mt-2">
+                <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(dayTemp)}">${dayTemp}</span></p>
+                <p>Precip: <span style="color: var(--precip-color)">${dayPrecip}</span></p>
+                <p>Wind: <span style="color: var(--wind-color)">${dayWind}</span></p>
+                <p>${dayForecast}</p>
+                <p class="detailed-forecast">${dayDetailed}</p>
+              </div>
+              <div class="day-item">
+                <p class="font-medium">Night</p>
+                <img src="${nightIcon}" alt="${nightForecast}" class="mt-2">
+                <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(nightTemp)}">${nightTemp}</span></p>
+                <p>Precip: <span style="color: var(--precip-color)">${nightPrecip}</span></p>
+                <p>Wind: <span style="color: var(--wind-color)">${nightWind}</span></p>
+                <p>${nightForecast}</p>
+                <p class="detailed-forecast">${nightDetailed}</p>
+              </div>
+            </div>
           </div>
         `);
-        if (index % 2 === 0 && index < periods.length - 1) {
-          elements.sevenDay.insertAdjacentHTML('beforeend', '<div class="w-full clear-both"></div>');
-        }
       });
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
@@ -562,7 +587,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
 
-      // Ensure "Now" tab is active
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       const nowTab = document.querySelector('[data-tab="now"]');
@@ -730,7 +754,6 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.tabs.style.display = 'flex';
       elements.starter.classList.add('hidden');
       elements.starter.style.display = 'none';
-      // Ensure "Now" tab is active
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       const nowTab = document.querySelector('[data-tab="now"]');
