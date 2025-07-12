@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NWS Weather App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header flex justify-between items-center">
+    <h1 id="location-name-header" class="text-xl font-bold cursor-pointer">Select Location</h1>
+    <div class="flex items-center">
+      <button id="alerts-button" class="relative mr-4 hidden">
+        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <span id="alerts-count" class="badge hidden">0</span>
+      </button>
+      <button id="settings-button" class="text-white hover:text-gray-200">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.065z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="tabs hidden" id="tabs">
+    <div class="tab-button active" data-tab="now">Now</div>
+    <div class="tab-button" data-tab="hourly">Hourly</div>
+    <div class="tab-button" data-tab="7-day">7-Day</div>
+    <div class="tab-button" data-tab="station-data">Station Data</div>
+  </div>
+  <div id="starter-screen" class="starter-screen">
+    <h1 class="text-2xl font-bold mb-4">Weather App</h1>
+    <div id="geolocation-message" class="hidden text-gray-600 mb-4">Please allow location access...</div>
+    <div class="w-3/4">
+      <label for="location" class="block text-sm font-medium">Enter Address or Zip Code</label>
+      <input type="text" id="location" placeholder="Address or Zip Code" class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white" autocomplete="off">
+      <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
+      <p id="location-error" class="text-red-500 text-sm mt-1 hidden"></p>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id="auto-locate" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Auto-Locate</button>
+    </div>
+  </div>
+  <div id="loading" class="hidden text-center mt-4">
+    <p class="text-gray-600">Loading...</p>
+  </div>
+  <div id="weather-result" class="hidden">
+    <div id="now-section" class="tab-content active"></div>
+    <div id="hourly-section" class="tab-content"></div>
+    <div id="7-day-section" class="tab-content"></div>
+    <div id="station-data-section" class="tab-content">
+      <div id="data-view">
+        <div id="data-view-header" class="flex items-center mb-8">
+          <h5 id="data-view-title" class="text-2xl font-semibold text-gray-800">Station: Loading... | Last Updated: Loading...</h5>
+        </div>
+        <div id="data-table-container" class="w-full overflow-auto max-h-[400px] border border-gray-200 rounded-lg">
+          <table id="data-table" class="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[150px]">Date and Time</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <table id="summary-table" class="w-full mt-8 border-collapse text-sm bg-white border border-gray-200 rounded-lg">
+          <thead>
+            <tr>
+              <th class="border border-gray-200 p-3 bg-gray-800 text-white">Variable</th>
+              <th class="border border-gray-200 p-3 bg-gray-800 text-white">Last Recorded Value</th>
+            </tr>
+          </thead>
+          <tbody id="summary-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div id="alerts-section" class="overlay-section hidden">
+    <div class="overlay-header">
+      <button class="back-button">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <h3 class="text-lg font-medium ml-2">Active Alerts</h3>
+    </div>
+    <div id="alerts-content" class="overlay-content">
+      <div id="alerts-list"></div>
+    </div>
+  </div>
+  <div id="settings-section" class="overlay-section hidden">
+    <div class="overlay-header">
+      <button class="back-button">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <h3 class="text-lg font-medium ml-2">Settings</h3>
+    </div>
+    <div class="overlay-content">
+      <div class="settings-toggle">
+        <span>Dark Mode</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="theme-toggle" class="sr-only peer">
+          <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600"></div>
+          <div class="absolute w-4 h-4 bg-white rounded-full top-1 left-1 peer-checked:translate-x-5"></div>
+        </label>
+      </div>
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.4/luxon.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
