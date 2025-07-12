@@ -32,8 +32,12 @@ function getTemperatureColor(tempF) {
   if (!tempF || tempF === 'N/A' || !tempF.includes('°F')) return 'var(--temp-color)';
   const value = parseFloat(tempF.replace('°F', ''));
   if (isNaN(value)) return 'var(--temp-color)';
-  const normalized = Math.min(Math.max((value - 32) / (100 - 32), 0), 1);
-  return `rgb(${Math.round(255 * normalized)}, 0, ${Math.round(255 * (1 - normalized))})`;
+  const minTemp = -20, maxTemp = 120; // Range inspired by Pivotal Weather
+  const normalized = Math.min(Math.max((value - minTemp) / (maxTemp - minTemp), 0), 1);
+  const r = Math.round(255 * normalized);
+  const b = Math.round(255 * (1 - normalized));
+  const g = Math.round(255 * (normalized < 0.5 ? 2 * normalized : 2 * (1 - normalized)));
+  return `rgb(${r}, ${g}, ${b})`; // Blue to red gradient
 }
 
 function formatPrecipitation(value) {
@@ -484,7 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
         elements.hourly.insertAdjacentHTML('beforeend', `
           <div class="hour-row">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto">
             <div class="main-row">
               <div class="hour-cell font-medium">${timeStr}</div>
               <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
@@ -496,33 +499,51 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
               <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
             </div>
+            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
           </div>
         `);
       });
-      elements.sevenDay.innerHTML = '<div class="seven-day-grid"></div>';
-      const sevenDayGrid = elements.sevenDay.querySelector('.seven-day-grid');
-      let dayCount = 0, i = 0;
-      while (i < periods.length && dayCount < 7) {
-        const period = periods[i];
+      elements.sevenDay.innerHTML = '';
+      const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
+      periods.forEach((period, index) => {
+        const periodDate = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).startOf('day');
+        const isDay = period.isDaytime;
+        const isPast = periodDate < today;
         const forecastText = period.shortForecast || 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
         const precipChance = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
-        const detailedForecast = period.detailedForecast ? period.detailedForecast.substring(0, 100) + (period.detailedForecast.length > 100 ? '...' : '') : 'N/A';
-        sevenDayGrid.insertAdjacentHTML('beforeend', `
-          <div class="day-item">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
-            <p class="font-medium">${period.name}</p>
-            <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
-            <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
-            <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
-            <p>${forecastText}</p>
-            <p class="detailed-forecast">${detailedForecast}</p>
-          </div>
-        `);
-        i++;
-        if (i >= periods.length || (i % 2 === 0 && periods[i-1].isDaytime !== periods[i-2].isDaytime)) dayCount++;
-      }
+        const detailedForecast = period.detailedForecast || 'N/A';
+        if (isDay || (isPast && index % 2 === 0)) {
+          elements.sevenDay.insertAdjacentHTML('beforeend', `
+            <div class="day-item">
+              <p class="font-medium">${period.name}</p>
+              <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
+              <p>${isDay ? 'Day' : 'Night'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
+              <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
+              <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
+              <p>${forecastText}</p>
+              <p class="detailed-forecast">${detailedForecast}</p>
+            </div>
+          `);
+        }
+        if (!isDay && !isPast) {
+          const nextPeriod = periods[index + 1];
+          if (nextPeriod && nextPeriod.isDaytime) {
+            elements.sevenDay.insertAdjacentHTML('beforeend', `
+              <div class="day-item">
+                <p class="font-medium">${nextPeriod.name}</p>
+                <img src="${nextPeriod.icon || `${NWS_API}/icons/land/night/skc?size=medium`}" alt="${nextPeriod.shortForecast || 'Clear'}" class="mt-1">
+                <p>Night: <span class="temp-color" style="color: ${getTemperatureColor(nextPeriod.temperatureUnit === 'F' ? `${nextPeriod.temperature}°F` : `${Math.round((nextPeriod.temperature * 9/5) + 32)}°F`)}">${nextPeriod.temperatureUnit === 'F' ? `${nextPeriod.temperature}°F` : `${Math.round((nextPeriod.temperature * 9/5) + 32)}°F`}</span></p>
+                <p>Precip: <span style="color: var(--precip-color)">${nextPeriod.probabilityOfPrecipitation?.value != null ? `${nextPeriod.probabilityOfPrecipitation.value}%` : 'N/A'}</span></p>
+                <p>Wind: <span style="color: var(--wind-color)">${nextPeriod.windSpeed && nextPeriod.windDirection ? `${nextPeriod.windSpeed} ${nextPeriod.windDirection}` : 'N/A'}</span></p>
+                <p>${nextPeriod.shortForecast || 'N/A'}</p>
+                <p class="detailed-forecast">${nextPeriod.detailedForecast || 'N/A'}</p>
+              </div>
+            `);
+          }
+        }
+      });
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
