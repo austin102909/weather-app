@@ -32,8 +32,25 @@ function getTemperatureColor(tempF) {
   if (!tempF || tempF === 'N/A' || !tempF.includes('°F')) return 'var(--temp-color)';
   const value = parseFloat(tempF.replace('°F', ''));
   if (isNaN(value)) return 'var(--temp-color)';
-  const normalized = Math.min(Math.max((value - 32) / (100 - 32), 0), 1);
-  return `rgb(${Math.round(255 * normalized)}, 0, ${Math.round(255 * (1 - normalized))})`;
+  const tempPalette = {
+    "120–115": "#4e4e4e", "115–110": "#696262", "110–105": "#857373", "105–100": "#a18383",
+    "100–95": "#be928e", "95–90": "#da9c84", "90–85": "#e68d6a", "85–80": "#d05742",
+    "80–75": "#c44033", "75–70": "#dd693a", "70–65": "#e28a41", "65–60": "#e2a84b",
+    "60–55": "#d8bc55", "55–50": "#c6c966", "50–45": "#a6bc64", "45–40": "#7fb167",
+    "40–35": "#4b9f8e", "35–30": "#4481b7", "30–25": "#6aa7e3", "25–20": "#96c3e5",
+    "20–15": "#c0d0e6", "15–10": "#e0a6d7", "10–5": "#c56eb6", "5–0": "#b03b95",
+    "0–-5": "#9c2c8b", "-5–-10": "#8b1c84", "-10–-15": "#832284", "-15–-20": "#8a3390",
+    "-20–-25": "#9a55a7", "-25–-30": "#a976bb", "-30–-35": "#b997ca", "-35–-40": "#cdbad9",
+    "-40–-45": "#b6d4d9", "-45–-50": "#80cbc5", "-50–-55": "#39a2a1", "-55–-60": "#106377"
+  };
+  const ranges = Object.keys(tempPalette).map(range => {
+    const [min, max] = range.split('–').map(Number);
+    return { min, max, color: tempPalette[range] };
+  }).sort((a, b) => a.min - b.min);
+  for (let range of ranges) {
+    if (value >= range.min && value < range.max) return range.color;
+  }
+  return ranges[0].color; // Default to coldest range if out of bounds
 }
 
 function formatPrecipitation(value) {
@@ -443,29 +460,32 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.header.textContent = locationName;
       elements.now.innerHTML = `
         <div class="weather-card">
-          <div class="grid grid-cols-1 gap-6 text-center">
-            <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
-            <img src="${icon}" alt="${currentConditions}" class="mx-auto w-24 h-24">
-            <p class="text-xl font-semibold">${currentConditions}</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
+            <div class="bg-card p-6 rounded-lg shadow">
+              <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
+              <p class="text-2xl font-semibold mt-4">${currentConditions}</p>
+            </div>
+            <div class="bg-card p-6 rounded-lg shadow">
+              <img src="${icon}" alt="${currentConditions}" class="mx-auto w-48 h-48">
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-6 mt-6">
-            <div class="bg-card p-4 rounded-lg shadow">
-              <p class="text-base mb-2">Feels Like: <span style="color: ${getTemperatureColor(displayData.feelsLike)}">${displayData.feelsLike}</span></p>
-              <p class="text-base mb-2">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
-              <p class="text-base mb-2">Dew Point: <span style="color: var(--dewpoint-color)">${displayData.dewPoint}</span></p>
-              <p class="text-base mb-2">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed}</span> <span style="color: var(--wind-direction-color)">${displayData.windDirection}</span></p>
-              <p class="text-base">Wind Gust: <span style="color: var(--wind-color)">${displayData.windGust}</span></p>
+            <div class="bg-card p-6 rounded-lg shadow">
+              <p class="text-xl mb-4">Feels Like: <span style="color: ${getTemperatureColor(displayData.feelsLike)}">${displayData.feelsLike}</span></p>
+              <p class="text-xl mb-4">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
+              <p class="text-xl mb-4">Dew Point: <span style="color: var(--dewpoint-color)">${displayData.dewPoint}</span></p>
+              <p class="text-xl">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed}</span> <span style="color: var(--wind-direction-color)">${displayData.windDirection}</span></p>
             </div>
-            <div class="bg-card p-4 rounded-lg shadow">
-              <p class="text-base mb-2">Pressure: <span style="color: var(--pressure-color)">${displayData.pressure}</span></p>
-              <p class="text-base mb-2">24hr Precip: <span style="color: var(--precip-color)">${displayData.precip24Hour}</span></p>
-              <p class="text-base mb-2">24hr High: <span style="color: ${getTemperatureColor(displayData.tempHigh24Hour)}">${displayData.tempHigh24Hour}</span></p>
-              <p class="text-base">24hr Low: <span style="color: ${getTemperatureColor(displayData.tempLow24Hour)}">${displayData.tempLow24Hour}</span></p>
+            <div class="bg-card p-6 rounded-lg shadow">
+              <p class="text-xl mb-4">Pressure: <span style="color: var(--pressure-color)">${displayData.pressure}</span></p>
+              <p class="text-xl mb-4">24hr Precip: <span style="color: var(--precip-color)">${displayData.precip24Hour}</span></p>
+              <p class="text-xl mb-4">24hr High: <span style="color: ${getTemperatureColor(displayData.tempHigh24Hour)}">${displayData.tempHigh24Hour}</span></p>
+              <p class="text-xl">24hr Low: <span style="color: ${getTemperatureColor(displayData.tempLow24Hour)}">${displayData.tempLow24Hour}</span></p>
             </div>
           </div>
-          <div class="bg-card p-4 rounded-lg shadow mt-6">
-            <p class="text-base">Last Updated: <span>${lastUpdated}</span></p>
-            <p class="text-sm text-gray-500" style="color: var(--text-color)">Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+          <div class="bg-card p-6 rounded-lg shadow mt-6">
+            <p class="text-xl">Last Updated: <span>${lastUpdated}</span></p>
+            <p class="text-lg text-gray-500 mt-2" style="color: var(--text-color)">Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
           </div>
         </div>
       `;
@@ -477,52 +497,58 @@ document.addEventListener('DOMContentLoaded', () => {
       }).slice(0, 24);
       hourlyPeriods.forEach(period => {
         const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
-        const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
+        const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const dewPoint = period.dewpoint?.value != null ? `${Math.round((period.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
         const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
         elements.hourly.insertAdjacentHTML('beforeend', `
           <div class="hour-row">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto">
-            <div class="main-row">
-              <div class="hour-cell font-medium">${timeStr}</div>
-              <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-              <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
-            </div>
-            <div class="additional-row">
-              <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
-              <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
-              <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
-              <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
+            <div class="hour-content">
+              <div class="hour-top-row">
+                <div class="hour-cell">${timeStr}</div>
+                <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+                <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+              </div>
+              <div class="hour-bottom-row">
+                <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
+                <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
+                <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
+                <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+              </div>
             </div>
           </div>
         `);
       });
-      elements.sevenDay.innerHTML = '<div class="seven-day-grid"></div>';
-      const sevenDayGrid = elements.sevenDay.querySelector('.seven-day-grid');
-      let dayCount = 0, i = 0;
-      while (i < periods.length && dayCount < 7) {
-        const period = periods[i];
+      elements.sevenDay.innerHTML = '';
+      const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
+      periods.forEach((period, index) => {
+        const periodDate = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).startOf('day');
+        const isDay = period.isDaytime;
+        const isPast = periodDate < today;
         const forecastText = period.shortForecast || 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
         const precipChance = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
-        const detailedForecast = period.detailedForecast ? period.detailedForecast.substring(0, 100) + (period.detailedForecast.length > 100 ? '...' : '') : 'N/A';
-        sevenDayGrid.insertAdjacentHTML('beforeend', `
-          <div class="day-item">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1">
-            <p class="font-medium">${period.name}</p>
-            <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
+        const detailedForecast = period.detailedForecast || 'N/A';
+        const dayName = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).toFormat('EEEE');
+        const title = `${dayName}${isDay ? '' : ' Night'}`;
+        elements.sevenDay.insertAdjacentHTML('beforeend', `
+          <div class="day-item ${index % 2 === 0 ? 'mr-4' : ''}">
+            <p class="font-medium">${title}</p>
+            <img src="${period.icon || `${NWS_API}/icons/land/${isDay ? 'day' : 'night'}/skc?size=medium`}" alt="${forecastText}" class="mt-2">
+            <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
             <p>Precip: <span style="color: var(--precip-color)">${precipChance}</span></p>
             <p>Wind: <span style="color: var(--wind-color)">${wind}</span></p>
             <p>${forecastText}</p>
             <p class="detailed-forecast">${detailedForecast}</p>
           </div>
         `);
-        i++;
-        if (i >= periods.length || (i % 2 === 0 && periods[i-1].isDaytime !== periods[i-2].isDaytime)) dayCount++;
-      }
+        if (index % 2 === 0 && index < periods.length - 1) {
+          elements.sevenDay.insertAdjacentHTML('beforeend', '<div class="w-full clear-both"></div>');
+        }
+      });
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
