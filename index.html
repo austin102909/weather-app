@@ -4,99 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weather App</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-  <script src="script.js" defer></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="header flex justify-between items-center">
-    <h1 id="location-name-header" class="cursor-pointer">Weather</h1>
-    <div class="flex items-center gap-4">
-      <button id="alerts-button" class="header-button hidden"><i class="fas fa-exclamation-triangle"></i></button>
-      <span id="alerts-count" class="hidden"></span>
-      <button id="settings-button" class="header-button"><i class="fas fa-cog"></i></button>
-      <span id="clock"></span>
+  <div class="header">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <span id="clock" class="text-lg font-semibold mr-4"></span>
+        <h1 id="location-name-header" class="text-center cursor-pointer hover:text-gray-200" title="Change location">Weather App</h1>
+      </div>
+      <div class="flex space-x-2">
+        <button id="alerts-button" class="header-button hidden" title="Alerts">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="alerts-count" class="badge hidden">0</span>
+        </button>
+        <button id="settings-button" class="header-button" title="Settings">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
     </div>
-  </header>
-
-  <div id="tabs" class="tabs">
-    <button class="tab-button active" data-tab="now">Now</button>
-    <button class="tab-button" data-tab="hourly">Hourly</button>
-    <button class="tab-button" data-tab="7-day">7-Day</button>
-    <button class="tab-button" data-tab="data">Data</button>
   </div>
-
+  <div id="tabs" class="tabs hidden">
+    <div class="tab-button active" data-tab="now">Now</div>
+    <div class="tab-button" data-tab="hourly">Hourly</div>
+    <div class="tab-button" data-tab="7-day">7 Day</div>
+    <div class="tab-button" data-tab="station-data">Station Data</div>
+  </div>
   <div id="starter-screen" class="starter-screen">
     <div class="weather-card">
-      <input type="text" id="location" placeholder="Enter location..." class="mb-6">
-      <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
-      <p id="location-error" class="text-red-500 hidden mt-4"></p>
-      <p id="geolocation-message" class="text-gray-500 hidden mt-4"></p>
-      <button id="auto-locate" class="mt-6">Use Current Location</button>
+      <h2 class="text-2xl font-bold mb-4">Enter a Location</h2>
+      <input id="location" type="text" placeholder="City or ZIP code" class="w-full p-3 rounded-lg border border-gray-300 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <div id="autocomplete-dropdown" class="hidden"></div>
+      <p id="location-error" class="text-red-500 mb-4 hidden"></p>
+      <button id="auto-locate" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600">Use Current Location</button>
+      <p id="geolocation-message" class="text-gray-600 mt-4 hidden">Getting your location...</p>
     </div>
   </div>
-
-  <div id="weather-result" class="tab-content active">
-    <div id="now-section" class="tab-content active">
-      <div class="weather-card">
-        <!-- Now section content will be dynamically inserted by script.js -->
+  <div id="loading" class="weather-card hidden">
+    <p class="text-xl">Loading...</p>
+  </div>
+  <div id="weather-result" class="hidden">
+    <div id="now-section" class="tab-content active"></div>
+    <div id="hourly-section" class="tab-content"></div>
+    <div id="7-day-section" class="tab-content"></div>
+    <div id="station-data-section" class="tab-content">
+      <h2 id="data-view-title" class="text-xl font-semibold mb-4">Station Data</h2>
+      <div id="data-table-container">
+        <table id="data-table">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
-    </div>
-    <div id="hourly-section" class="tab-content">
-      <div class="weather-card">
-        <!-- Hourly content will be dynamically inserted by script.js -->
-      </div>
-    </div>
-    <div id="7-day-section" class="tab-content">
-      <div class="weather-card">
-        <!-- 7-day content will be dynamically inserted by script.js -->
-      </div>
-    </div>
-    <div id="data-section" class="tab-content">
-      <div class="weather-card">
-        <h2 id="data-view-title" class="text-2xl font-bold mb-4">Station Data</h2>
-        <div id="data-table-container">
-          <table id="data-table">
-            <thead><tr></tr></thead>
-            <tbody id="data-table-body"></tbody>
-          </table>
-        </div>
-        <table id="summary-table">
-          <thead><tr><th>Summary</th><th>Value</th></tr></thead>
+      <h2 class="text-xl font-semibold my-4">Latest Observations</h2>
+      <div>
+        <table id="summary-table" class="w-full">
+          <thead><tr></tr></thead>
           <tbody id="summary-table-body"></tbody>
         </table>
       </div>
     </div>
   </div>
-
   <div id="alerts-section" class="overlay-section">
-    <div class="overlay-header flex justify-between items-center">
-      <h2 class="text-xl font-bold">Alerts</h2>
-      <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
+    <div class="overlay-header">
+      <button class="back-button">← Back</button>
+      <h2 class="text-xl font-semibold ml-4">Alerts</h2>
     </div>
-    <div class="overlay-content">
-      <div id="alerts-list"></div>
-    </div>
+    <div class="overlay-content" id="alerts-list"></div>
   </div>
-
   <div id="settings-section" class="overlay-section">
-    <div class="overlay-header flex justify-between items-center">
-      <h2 class="text-xl font-bold">Settings</h2>
-      <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
+    <div class="overlay-header">
+      <button class="back-button">← Back</button>
+      <h2 class="text-xl font-semibold ml-4">Settings</h2>
     </div>
     <div class="overlay-content">
       <div class="settings-toggle">
-        <span class="label" id="switch-label">Dark mode</span>
-        <label class="switch">
-          <input type="checkbox" id="theme-toggle">
-          <span class="slider"></span>
-        </label>
+        <span>Dark Mode</span>
+        <input type="checkbox" id="theme-toggle">
       </div>
+      <p class="text-base text-opacity-70" style="color: var(--text-color)">Version: 1.1</p>
     </div>
   </div>
-
-  <div id="loading"></div>
+  <script src="script.js"></script>
 </body>
 </html>
