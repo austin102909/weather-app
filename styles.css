@@ -215,18 +215,6 @@ body {
 }
 
 /* Switch Toggle for Dark Mode */
-.switch-container {
-  display: flex;
-  align-items: center;
-}
-
-.switch-label {
-  margin-right: 12px;
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-color);
-}
-
 .switch {
   position: relative;
   display: inline-block;
@@ -288,7 +276,7 @@ input:checked + .slider:before {
   padding: 28px;
   box-shadow: 0 8px 24px var(--shadow);
   width: 100%;
-  max-width: 520px;
+  max-width: 100%;
   backdrop-filter: blur(14px);
   text-align: center;
   transition: all 0.2s ease;
@@ -405,7 +393,7 @@ input:checked + .slider:before {
 
 .hour-row {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   padding: 18px;
   border-bottom: 1px solid var(--border-color);
   transition: all 0.2s ease;
@@ -420,43 +408,36 @@ input:checked + .slider:before {
   transform: scale(1.02);
 }
 
-.hour-row .main-row {
-  display: flex;
-  align-items: center;
-  overflow-x: auto;
+.hour-content {
+  flex-grow: 1;
+  text-align: center;
 }
 
-.hour-row .additional-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 12px;
-  font-size: 1.2rem;
+.hour-top-row, .hour-bottom-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.hour-bottom-row {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .hour-cell {
-  flex: 0 0 auto;
-  min-width: 100px;
   padding: 12px;
-  text-align: center;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 500;
 }
 
-.hour-cell img {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 10px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+.hour-cell.additional {
+  font-size: 1.25rem;
 }
 
-.hour-cell.additional {
-  min-width: 90px;
-  padding: 8px 12px;
-  text-align: center;
-  font-size: 1.15rem;
+.hour-image {
+  width: 80px;
+  height: 80px;
+  margin-right: 20px;
 }
 
 .day-item {
@@ -466,6 +447,8 @@ input:checked + .slider:before {
   background: var(--card-bg);
   transition: all 0.2s ease;
   backdrop-filter: blur(14px);
+  width: 48%;
+  box-sizing: border-box;
 }
 
 .day-item:last-child {
@@ -489,8 +472,8 @@ input:checked + .slider:before {
 }
 
 .day-item img {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   margin-bottom: 12px;
   display: block;
   margin-left: auto;
@@ -504,11 +487,10 @@ input:checked + .slider:before {
   margin-top: 10px;
 }
 
-.seven-day-grid {
+#sevenDay {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 22px;
-  padding: 22px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
 #data-table-container {
@@ -665,4 +647,10 @@ input#location:focus {
 @media (max-width: 768px) {
   .hour-cell {
     min-width: 90px;
-    font-size: 1.
+    font-size: 1.25rem;
+  }
+  .hour-top-row, .hour-bottom-row {
+    grid-template-columns: 1fr;
+  }
+  .day-item {
+    width: 100%;
