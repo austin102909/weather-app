@@ -214,12 +214,11 @@ body {
   font-weight: 500;
 }
 
-/* Switch Toggle for Dark Mode */
 .switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 26px;
+  width: 60px;
+  height: 34px;
 }
 
 .switch input {
@@ -236,19 +235,19 @@ body {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: 0.3s;
-  border-radius: 26px;
+  transition: 0.4s;
+  border-radius: 34px;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 22px;
-  width: 22px;
-  left: 2px;
-  bottom: 2px;
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
   background-color: white;
-  transition: 0.3s;
+  transition: 0.4s;
   border-radius: 50%;
 }
 
@@ -257,7 +256,7 @@ input:checked + .slider {
 }
 
 input:checked + .slider:before {
-  transform: translateX(24px);
+  transform: translateX(26px);
 }
 
 .starter-screen {
@@ -394,11 +393,11 @@ input:checked + .slider:before {
 .hour-row {
   display: flex;
   align-items: flex-start;
-  padding: 12px;
+  padding: 6px;
   border-bottom: 1px solid var(--border-color);
   transition: all 0.2s ease;
   border-radius: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   background: var(--card-bg);
   backdrop-filter: blur(14px);
 }
@@ -416,8 +415,8 @@ input:checked + .slider:before {
 .hour-top-row, .hour-bottom-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-  margin-bottom: 5px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .hour-bottom-row {
@@ -425,13 +424,13 @@ input:checked + .slider:before {
 }
 
 .hour-cell {
-  padding: 8px;
-  font-size: 1.25rem;
+  padding: 6px;
+  font-size: 1.4rem;
   font-weight: 500;
 }
 
 .hour-cell.additional {
-  font-size: 1rem;
+  font-size: 1.2rem;
 }
 
 .hour-image {
@@ -440,65 +439,45 @@ input:checked + .slider:before {
   margin-right: 10px;
 }
 
-.day-item {
+.forecast-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.day-forecast, .night-forecast {
   padding: 16px;
   margin-bottom: 16px;
   border-radius: 12px;
   background: var(--card-bg);
   transition: all 0.2s ease;
   backdrop-filter: blur(14px);
-  width: 48%;
-  box-sizing: border-box;
 }
 
-.day-item:last-child {
-  margin-bottom: 0;
-}
-
-.day-item:hover {
+.day-forecast:hover, .night-forecast:hover {
   transform: scale(1.02);
   box-shadow: 0 8px 24px var(--shadow);
 }
 
-.day-item p {
+.day-forecast p, .night-forecast p {
   margin: 6px 0;
   font-size: 1.1rem;
   font-weight: 500;
 }
 
-.day-item .font-medium {
+.day-forecast .font-medium, .night-forecast .font-medium {
   font-size: 1.3rem;
   font-weight: 600;
 }
 
-.day-item img {
+.day-forecast img, .night-forecast img {
   width: 100px;
   height: 100px;
   margin-bottom: 10px;
   display: block;
   margin-left: auto;
   margin-right: auto;
-}
-
-.day-item .detailed-forecast {
-  font-size: 0.95rem;
-  color: var(--text-color);
-  line-height: 1.5;
-  margin-top: 8px;
-}
-
-#sevenDay {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.day-forecast {
-  grid-column: 1;
-}
-
-.night-forecast {
-  grid-column: 2;
 }
 
 #data-table-container {
@@ -508,7 +487,7 @@ input:checked + .slider:before {
   width: 100%;
   margin: 0;
   overflow-x: auto;
-  max-height: 420px;
+  max-height: 600px;
   scroll-behavior: smooth;
   backdrop-filter: blur(14px);
 }
@@ -640,7 +619,6 @@ input#location:focus {
   100% { transform: rotate(360deg); }
 }
 
-/* Ensure starter screen hides tabs and results */
 #starter-screen:not(.hidden) {
   display: flex !important;
   z-index: 20;
@@ -660,10 +638,7 @@ input#location:focus {
   .hour-top-row, .hour-bottom-row {
     grid-template-columns: 1fr;
   }
-  .day-item {
-    width: 100%;
-  }
-  #sevenDay {
+  .forecast-row {
     grid-template-columns: 1fr;
   }
 }
