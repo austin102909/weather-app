@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.settings.classList.remove('active');
   elements.autocomplete.classList.add('hidden');
   elements.locationError.classList.add('hidden');
+  elements.loading.classList.add('hidden');
 
   // Ensure tabs are hidden on search menu
   setTimeout(() => {
@@ -335,6 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
+    console.log('fetchWeather called with:', { location, lat, lng, isGeolocation });
     if (!location && !isGeolocation) {
       console.error('FetchWeather Error: No location provided');
       elements.locationError.textContent = 'Error: Please enter a valid location.';
@@ -350,6 +352,17 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.starter.classList.add('hidden');
     elements.result.classList.add('hidden');
     elements.tabs.classList.add('hidden');
+
+    // Timeout for loading state
+    const timeout = setTimeout(() => {
+      elements.loading.classList.add('hidden');
+      elements.locationError.textContent = 'Error: Data fetch timed out. Please try again.';
+      elements.locationError.classList.remove('hidden');
+      elements.starter.classList.remove('hidden');
+      elements.tabs.classList.add('hidden');
+      elements.result.classList.add('hidden');
+    }, 10000);
+
     try {
       let locationName;
       if (isGeolocation) {
@@ -370,9 +383,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       lat = Number(lat.toFixed(4));
       lng = Number(lng.toFixed(4));
+      console.log('Coordinates processed:', { lat, lng });
 
       const pointsResponse = await fetchWithRetry(`${NWS_API}/points/${lat},${lng}`);
       const pointsData = await pointsResponse.json();
+      console.log('Points data:', pointsData);
       if (!pointsData.properties) throw new Error('No points data');
       const { observationStations: stationsUrl, gridId: wfo, gridX, gridY, timeZone } = pointsData.properties;
       currentTimezone = timeZone || 'America/Chicago';
@@ -380,6 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const { stationId, currentConditions, icon, nwsData } = await fetchCurrentConditions(stationsUrl);
       currentStationId = stationId;
+      console.log('Current conditions:', { stationId, currentConditions, nwsData });
 
       const endDate = new Date(), startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000);
       const synopticSuccess = await fetchStationData(stationId, startDate, endDate);
@@ -406,11 +422,16 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         displayData = { ...nwsData, feelsLike: 'N/A', precip24Hour: 'N/A', tempHigh24Hour: 'N/A', tempLow24Hour: 'N/A' };
       }
+      console.log('Display data:', displayData);
 
       const hourlyData = await fetchHourlyForecast(wfo, gridX, gridY);
+      console.log('Hourly data:', hourlyData.properties.periods.slice(0, 3));
       activeAlerts = await fetchAlerts(lat, lng);
+      console.log('Alerts:', activeAlerts.length, activeAlerts);
       const forecastData = await fetchSevenDayForecast(wfo, gridX, gridY);
+      console.log('7-day forecast:', forecastData.properties.periods.slice(0, 3));
       const periods = forecastData.properties.periods;
+
       elements.header.textContent = locationName;
       elements.now.innerHTML = `
         <div class="weather-card">
@@ -514,13 +535,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nowTab) nowTab.classList.add('active');
       elements.now.classList.add('active');
 
+      clearTimeout(timeout);
       elements.loading.classList.add('hidden');
       elements.result.classList.remove('hidden');
       elements.tabs.classList.remove('hidden');
       elements.starter.classList.add('hidden');
-      selectedLocation = null;
+      setTimeout(() => {
+        elements.result.style.opacity = '1';
+        elements.tabs.style.opacity = '1';
+      }, 10);
+      console.log('Weather data rendered successfully');
     } catch (e) {
       console.error('FetchWeather Error:', e.message);
+      clearTimeout(timeout);
       elements.loading.classList.add('hidden');
       elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${e.message}`;
       elements.locationError.classList.remove('hidden');
@@ -613,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.add('active');
       const tabSection = document.getElementById(`${button.dataset.tab}-section`);
       if (tabSection) tabSection.classList.add('active');
+      console.log(`Tab switched to: ${button.dataset.tab}`);
     });
   });
 
