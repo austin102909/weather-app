@@ -460,14 +460,12 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.header.textContent = locationName;
       elements.now.innerHTML = `
         <div class="weather-card">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-            <div class="bg-card p-6 rounded-lg shadow">
+          <div class="bg-card p-6 rounded-lg shadow flex items-center justify-center">
+            <div class="text-center">
               <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
               <p class="text-2xl font-semibold mt-4">${currentConditions}</p>
             </div>
-            <div class="bg-card p-6 rounded-lg shadow">
-              <img src="${icon}" alt="${currentConditions}" class="mx-auto w-48 h-48">
-            </div>
+            <img src="${icon}" alt="${currentConditions}" class="w-200 h-200 ml-6">
           </div>
           <div class="grid grid-cols-2 gap-6 mt-6">
             <div class="bg-card p-6 rounded-lg shadow">
@@ -535,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dayName = luxon.DateTime.fromISO(period.startTime, { zone: currentTimezone }).toFormat('EEEE');
         const title = `${dayName}${isDay ? '' : ' Night'}`;
         elements.sevenDay.insertAdjacentHTML('beforeend', `
-          <div class="day-item ${index % 2 === 0 ? 'mr-4' : ''}">
+          <div class="day-item ${index % 2 === 0 ? '' : 'ml-4'} ${isDay ? 'day-forecast' : 'night-forecast'}">
             <p class="font-medium">${title}</p>
             <img src="${period.icon || `${NWS_API}/icons/land/${isDay ? 'day' : 'night'}/skc?size=medium`}" alt="${forecastText}" class="mt-2">
             <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
@@ -545,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p class="detailed-forecast">${detailedForecast}</p>
           </div>
         `);
-        if (index % 2 === 0 && index < periods.length - 1) {
+        if (index % 2 === 1 && index < periods.length - 1) {
           elements.sevenDay.insertAdjacentHTML('beforeend', '<div class="w-full clear-both"></div>');
         }
       });
