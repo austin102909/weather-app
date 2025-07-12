@@ -6,99 +6,65 @@
   <title>Weather App</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
-  <div id="loading" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-50">
-    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div>
-  </div>
-
-  <header class="header flex items-center justify-between p-4 bg-blue-900 text-white fixed top-0 w-full z-40 shadow-lg">
-    <h1 id="location-name-header" class="text-2xl font-bold cursor-pointer">Weather</h1>
-    <div class="flex items-center space-x-4">
-      <button id="alerts-button" class="header-button flex items-center space-x-2 hidden">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Alerts</span>
-        <span id="alerts-count" class="hidden"></span>
-      </button>
-      <button id="settings-button" class="header-button flex items-center space-x-2">
-        <i class="fas fa-cog"></i>
-        <span>Settings</span>
-      </button>
-      <div id="clock" class="text-lg font-medium"></div>
+  <header class="header flex justify-between items-center">
+    <h1 id="location-name-header" class="cursor-pointer">Weather</h1>
+    <div class="flex items-center gap-4">
+      <button id="alerts-button" class="header-button hidden"><i class="fas fa-exclamation-triangle"></i></button>
+      <span id="alerts-count" class="hidden"></span>
+      <button id="settings-button" class="header-button"><i class="fas fa-cog"></i></button>
+      <span id="clock"></span>
     </div>
   </header>
 
-  <div id="tabs" class="tabs flex justify-around mt-16 bg-white bg-opacity-90 p-2 shadow-md fixed w-full z-30">
-    <button data-tab="now" class="tab-button active">Now</button>
-    <button data-tab="hourly">Hourly</button>
-    <button data-tab="7-day">7-Day</button>
-    <button data-tab="data">Station Data</button>
+  <div id="tabs" class="tabs">
+    <button class="tab-button active" data-tab="now">Now</button>
+    <button class="tab-button" data-tab="hourly">Hourly</button>
+    <button class="tab-button" data-tab="7-day">7-Day</button>
+    <button class="tab-button" data-tab="data">Data</button>
   </div>
 
-  <div id="starter-screen" class="starter-screen hidden">
+  <div id="starter-screen" class="starter-screen">
     <div class="weather-card">
-      <input type="text" id="location" placeholder="Enter location..." class="w-full p-4 text-xl border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <input type="text" id="location" placeholder="Enter location..." class="mb-6">
       <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
-      <p id="location-error" class="text-red-500 mt-2 hidden"></p>
-      <p id="geolocation-message" class="text-gray-600 mt-2 hidden">Locating...</p>
-      <button id="auto-locate" class="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Use Current Location</button>
+      <p id="location-error" class="text-red-500 hidden mt-4"></p>
+      <p id="geolocation-message" class="text-gray-500 hidden mt-4"></p>
+      <button id="auto-locate" class="mt-6">Use Current Location</button>
     </div>
   </div>
 
-  <div id="weather-result" class="result hidden opacity-0 transition-opacity duration-400">
+  <div id="weather-result" class="tab-content active">
     <div id="now-section" class="tab-content active">
       <div class="weather-card">
-        <div class="text-center">
-          <h2 id="current-location" class="text-3xl font-bold mb-4"></h2>
-          <p id="current-temp" class="text-6xl font-extrabold mb-4 temp-color"></p>
-          <p id="current-conditions" class="text-2xl font-semibold mb-6"></p>
-          <img id="current-icon" src="" alt="Current Conditions" class="w-400 h-400 mx-auto mb-4">
-        </div>
-        <div class="grid grid-cols-2 gap-6">
-          <div class="bg-card p-6 rounded-lg shadow">
-            <p class="text-xl mb-4">Feels Like: <span id="feels-like" class="temp-color"></span></p>
-            <p class="text-xl mb-4">Humidity: <span id="humidity" class="text-blue-600"></span></p>
-            <p class="text-xl mb-4">Dew Point: <span id="dew-point" class="text-cyan-600"></span></p>
-            <p class="text-xl">Wind: <span id="wind-speed" class="text-teal-600"></span> <span id="wind-direction" class="text-yellow-600"></span></p>
-          </div>
-          <div class="bg-card p-6 rounded-lg shadow">
-            <p class="text-xl mb-4">Pressure: <span id="pressure" class="text-purple-600"></span></p>
-            <p class="text-xl mb-4">24hr Precip: <span id="precip-24hr" class="text-green-600"></span></p>
-            <p class="text-xl mb-4">24hr High: <span id="temp-high-24hr" class="temp-color"></span></p>
-            <p class="text-xl">24hr Low: <span id="temp-low-24hr" class="temp-color"></span></p>
-          </div>
-        </div>
-        <div class="bg-card p-6 rounded-lg shadow mt-6">
-          <p class="text-xl">Last Updated: <span id="last-updated"></span></p>
-          <p class="text-lg text-gray-500 mt-2" id="coordinates"></p>
-        </div>
+        <!-- Now section content will be dynamically inserted by script.js -->
       </div>
     </div>
-
     <div id="hourly-section" class="tab-content">
       <div class="weather-card">
-        <div id="hourly-forecast"></div>
+        <!-- Hourly content will be dynamically inserted by script.js -->
       </div>
     </div>
-
     <div id="7-day-section" class="tab-content">
       <div class="weather-card">
-        <div id="seven-day-forecast"></div>
+        <!-- 7-day content will be dynamically inserted by script.js -->
       </div>
     </div>
-
     <div id="data-section" class="tab-content">
       <div class="weather-card">
-        <h2 id="data-view-title" class="text-2xl font-bold mb-4"></h2>
-        <div id="data-table-container" class="overflow-x-auto">
-          <table id="data-table" class="w-full border-collapse">
-            <thead>
-              <tr></tr>
-            </thead>
+        <h2 id="data-view-title" class="text-2xl font-bold mb-4">Station Data</h2>
+        <div id="data-table-container">
+          <table id="data-table">
+            <thead><tr></tr></thead>
             <tbody id="data-table-body"></tbody>
           </table>
         </div>
-        <table id="summary-table" class="mt-4 w-full border-collapse">
+        <table id="summary-table">
+          <thead><tr><th>Summary</th><th>Value</th></tr></thead>
           <tbody id="summary-table-body"></tbody>
         </table>
       </div>
@@ -106,8 +72,8 @@
   </div>
 
   <div id="alerts-section" class="overlay-section">
-    <div class="overlay-header flex items-center justify-between p-4 bg-blue-900 text-white shadow-md">
-      <h2 class="text-xl font-bold">Weather Alerts</h2>
+    <div class="overlay-header flex justify-between items-center">
+      <h2 class="text-xl font-bold">Alerts</h2>
       <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
     </div>
     <div class="overlay-content">
@@ -116,13 +82,13 @@
   </div>
 
   <div id="settings-section" class="overlay-section">
-    <div class="overlay-header flex items-center justify-between p-4 bg-blue-900 text-white shadow-md">
+    <div class="overlay-header flex justify-between items-center">
       <h2 class="text-xl font-bold">Settings</h2>
       <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
     </div>
-    <div class="overlay-content p-6">
-      <div class="switch-container flex items-center justify-between mb-6">
-        <span class="label font-bold text-lg">Dark mode</span>
+    <div class="overlay-content">
+      <div class="settings-toggle">
+        <span class="label" id="switch-label">Dark mode</span>
         <label class="switch">
           <input type="checkbox" id="theme-toggle">
           <span class="slider"></span>
@@ -131,9 +97,6 @@
     </div>
   </div>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-  <script src="script.js"></script>
+  <div id="loading"></div>
 </body>
 </html>
