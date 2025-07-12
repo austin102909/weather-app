@@ -394,11 +394,11 @@ input:checked + .slider:before {
 .hour-row {
   display: flex;
   align-items: flex-start;
-  padding: 18px;
+  padding: 12px;
   border-bottom: 1px solid var(--border-color);
   transition: all 0.2s ease;
-  border-radius: 16px;
-  margin-bottom: 14px;
+  border-radius: 12px;
+  margin-bottom: 8px;
   background: var(--card-bg);
   backdrop-filter: blur(14px);
 }
@@ -416,8 +416,8 @@ input:checked + .slider:before {
 .hour-top-row, .hour-bottom-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 5px;
+  margin-bottom: 5px;
 }
 
 .hour-bottom-row {
@@ -425,25 +425,25 @@ input:checked + .slider:before {
 }
 
 .hour-cell {
-  padding: 12px;
-  font-size: 1.5rem;
+  padding: 8px;
+  font-size: 1.25rem;
   font-weight: 500;
 }
 
 .hour-cell.additional {
-  font-size: 1.25rem;
+  font-size: 1rem;
 }
 
 .hour-image {
   width: 80px;
   height: 80px;
-  margin-right: 20px;
+  margin-right: 10px;
 }
 
 .day-item {
-  padding: 22px;
-  margin-bottom: 22px;
-  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
   background: var(--card-bg);
   transition: all 0.2s ease;
   backdrop-filter: blur(14px);
@@ -461,36 +461,44 @@ input:checked + .slider:before {
 }
 
 .day-item p {
-  margin: 8px 0;
-  font-size: 1.2rem;
+  margin: 6px 0;
+  font-size: 1.1rem;
   font-weight: 500;
 }
 
 .day-item .font-medium {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
 .day-item img {
   width: 100px;
   height: 100px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
 
 .day-item .detailed-forecast {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--text-color);
   line-height: 1.5;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 #sevenDay {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.day-forecast {
+  grid-column: 1;
+}
+
+.night-forecast {
+  grid-column: 2;
 }
 
 #data-table-container {
@@ -647,10 +655,15 @@ input#location:focus {
 @media (max-width: 768px) {
   .hour-cell {
     min-width: 90px;
-    font-size: 1.25rem;
+    font-size: 1rem;
   }
   .hour-top-row, .hour-bottom-row {
     grid-template-columns: 1fr;
   }
   .day-item {
     width: 100%;
+  }
+  #sevenDay {
+    grid-template-columns: 1fr;
+  }
+}
