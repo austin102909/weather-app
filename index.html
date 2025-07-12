@@ -3,118 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NWS Weather App</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Weather App</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="header flex justify-between items-center">
-    <h1 id="location-name-header" class="text-xl font-semibold cursor-pointer">Select Location</h1>
-    <div class="flex items-center">
-      <button id="alerts-button" class="relative mr-4 hidden">
-        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-        </svg>
-        <span id="alerts-count" class="badge hidden">0</span>
-      </button>
-      <button id="settings-button" class="text-white hover:text-gray-200">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.065z"></path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-        </svg>
-      </button>
+  <div class="header">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <span id="clock" class="text-lg font-semibold mr-4"></span>
+        <h1 id="location-name-header" class="text-center cursor-pointer hover:text-gray-200" title="Change location">Weather App</h1>
+      </div>
+      <div class="flex space-x-2">
+        <button id="alerts-button" class="header-button hidden" title="Alerts">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="alerts-count" class="badge hidden">0</span>
+        </button>
+        <button id="settings-button" class="header-button" title="Settings">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
     </div>
   </div>
-  <div class="tabs hidden" id="tabs">
+  <div id="tabs" class="tabs hidden">
     <div class="tab-button active" data-tab="now">Now</div>
     <div class="tab-button" data-tab="hourly">Hourly</div>
-    <div class="tab-button" data-tab="7-day">7-Day</div>
+    <div class="tab-button" data-tab="7-day">7 Day</div>
     <div class="tab-button" data-tab="station-data">Station Data</div>
   </div>
   <div id="starter-screen" class="starter-screen">
-    <h1 class="text-3xl font-bold mb-6">Weather App</h1>
-    <div id="geolocation-message" class="hidden text-gray-600 mb-4">Please allow location access...</div>
-    <div class="w-3/4 max-w-md">
-      <label for="location" class="block text-sm font-medium text-gray-700">Enter Address or Zip Code</label>
-      <input type="text" id="location" placeholder="Address or Zip Code" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all duration-200" autocomplete="off">
-      <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
-      <p id="location-error" class="text-red-500 text-sm mt-2 hidden"></p>
-    </div>
-    <div class="flex gap-3 mt-6">
-      <button id="auto-locate" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200">Auto-Locate</button>
+    <div class="weather-card">
+      <h2 class="text-2xl font-bold mb-4">Enter a Location</h2>
+      <input id="location" type="text" placeholder="City or ZIP code" class="w-full p-3 rounded-lg border border-gray-300 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <div id="autocomplete-dropdown" class="hidden"></div>
+      <p id="location-error" class="text-red-500 mb-4 hidden"></p>
+      <button id="auto-locate" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600">Use Current Location</button>
+      <p id="geolocation-message" class="text-gray-600 mt-4 hidden">Getting your location...</p>
     </div>
   </div>
-  <div id="loading" class="hidden text-center mt-4">
-    <p class="text-gray-600">Loading...</p>
+  <div id="loading" class="weather-card hidden">
+    <p class="text-xl">Loading...</p>
   </div>
   <div id="weather-result" class="hidden">
     <div id="now-section" class="tab-content active"></div>
     <div id="hourly-section" class="tab-content"></div>
     <div id="7-day-section" class="tab-content"></div>
     <div id="station-data-section" class="tab-content">
-      <div id="data-view">
-        <div id="data-view-header" class="flex items-center mb-8">
-          <h5 id="data-view-title" class="text-2xl font-semibold text-gray-800">Station: Loading... | Last Updated: Loading...</h5>
-        </div>
-        <div id="data-table-container" class="w-full overflow-auto max-h-[400px] border border-gray-200 rounded-lg">
-          <table id="data-table" class="w-full text-sm border-collapse">
-            <thead>
-              <tr>
-                <th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[150px]">Date and Time</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <table id="summary-table" class="w-full mt-8 border-collapse text-sm bg-white border border-gray-200 rounded-lg">
-          <thead>
-            <tr>
-              <th class="border border-gray-200 p-3 bg-gray-800 text-white">Variable</th>
-              <th class="border border-gray-200 p-3 bg-gray-800 text-white">Last Recorded Value</th>
-            </tr>
-          </thead>
+      <h2 id="data-view-title" class="text-xl font-semibold mb-4">Station Data</h2>
+      <div id="data-table-container">
+        <table id="data-table">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <h2 class="text-xl font-semibold my-4">Latest Observations</h2>
+      <div>
+        <table id="summary-table" class="w-full">
+          <thead><tr></tr></thead>
           <tbody id="summary-table-body"></tbody>
         </table>
       </div>
     </div>
   </div>
-  <div id="alerts-section" class="overlay-section hidden">
+  <div id="alerts-section" class="overlay-section">
     <div class="overlay-header">
-      <button class="back-button">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-        </svg>
-      </button>
-      <h3 class="text-lg font-medium ml-2">Active Alerts</h3>
+      <button class="back-button">← Back</button>
+      <h2 class="text-xl font-semibold ml-4">Alerts</h2>
     </div>
-    <div id="alerts-content" class="overlay-content">
-      <div id="alerts-list"></div>
-    </div>
+    <div class="overlay-content" id="alerts-list"></div>
   </div>
-  <div id="settings-section" class="overlay-section hidden">
+  <div id="settings-section" class="overlay-section">
     <div class="overlay-header">
-      <button class="back-button">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-        </svg>
-      </button>
-      <h3 class="text-lg font-medium ml-2">Settings</h3>
+      <button class="back-button">← Back</button>
+      <h2 class="text-xl font-semibold ml-4">Settings</h2>
     </div>
     <div class="overlay-content">
       <div class="settings-toggle">
         <span>Dark Mode</span>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="theme-toggle" class="sr-only peer">
-          <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 transition-all duration-200"></div>
-          <div class="absolute w-4 h-4 bg-white rounded-full top-1 left-1 peer-checked:translate-x-5 transition-all duration-200"></div>
-        </label>
+        <input type="checkbox" id="theme-toggle">
       </div>
+      <p class="text-base text-opacity-70" style="color: var(--text-color)">Version: 1.1</p>
     </div>
   </div>
-
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.4/luxon.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
