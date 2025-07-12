@@ -33,6 +33,22 @@ const pressureTendencyCodes = {
   8: "Falling quickly"
 };
 
+function getTemperatureColor(tempF) {
+  if (!tempF || tempF === 'N/A') return 'var(--temp-color)';
+  const value = parseFloat(tempF);
+  if (isNaN(value)) return 'var(--temp-color)';
+  const minTemp = 32, maxTemp = 100;
+  const normalized = Math.min(Math.max((value - minTemp) / (maxTemp - minTemp), 0), 1);
+  const r = Math.round(255 * normalized);
+  const b = Math.round(255 * (1 - normalized));
+  return `rgb(${r}, 0, ${b})`;
+}
+
+function formatPrecipitation(value) {
+  if (!value || value === 'N/A' || isNaN(parseFloat(value))) return 'N/A';
+  return `${parseFloat(value).toFixed(2)}in`;
+}
+
 function convertToAmericanUnits(observations, variables) {
   const converted = {}, lastNonNullValues = {}, excludedVars = [
     'air_temp_high_6_hour_set_1', 'air_temp_low_6_hour_set_1',
@@ -41,10 +57,10 @@ function convertToAmericanUnits(observations, variables) {
     'precip_accum_six_hour_set_1', 'precip_accum_24_hour_set_1'
   ];
   const unitMap = {
-    temperature: ['air_temp_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'wet_bulb_temperature_set_1', 'wet_bulb_temp_set_1d'],
+    temperature: ['air_temp_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'wet_bulb_temperature_set_1', 'wet_bulb_temp_set_1d', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'],
     wind: ['wind_speed_set_1', 'wind_gust_set_1', 'peak_wind_speed_set_1'],
     pressure: ['pressure_set_1d', 'sea_level_pressure_set_1d'],
-    precip: ['precip_accum'],
+    precip: ['precip_accum', 'precip_accum_24_hour_set_1'],
     visibility: ['visibility_set_1'],
     ceiling: ['ceiling_set_1'],
     altimeter: ['altimeter_set_1'],
@@ -72,11 +88,11 @@ function convertToAmericanUnits(observations, variables) {
     converted[v] = observations[v].map((value, i) => {
       if (value !== null && value !== '' && !isNaN(parseFloat(value))) {
         lastNonNull = parseFloat(value);
-        if (unitMap.temperature.includes(v)) return `${(lastNonNull * 9/5 + 32).toFixed(2)}°F`;
+        if (unitMap.temperature.includes(v)) return `${(lastNonNull * 9/5 + 32).toFixed(1)}°F`;
         if (unitMap.wind.includes(v)) return `${(lastNonNull * 2.23694).toFixed(2)}mph`;
         if (v.includes('altimeter')) return `${(lastNonNull * 0.0002953).toFixed(2)}inHg`;
         if (unitMap.pressure.includes(v)) return `${(lastNonNull * 0.01).toFixed(2)}mbar`;
-        if (unitMap.precip.includes(v)) return `${(lastNonNull * 0.03937).toFixed(3)}in`;
+        if (unitMap.precip.includes(v)) return formatPrecipitation((lastNonNull * 0.03937));
         if (v.includes('visibility')) {
           const miles = lastNonNull;
           return miles >= 10 ? '10.0mi' : `${miles.toFixed(1)}mi`;
@@ -91,11 +107,11 @@ function convertToAmericanUnits(observations, variables) {
         return value;
       }
       if (lastNonNull !== null && !isNaN(lastNonNull) && !excludedVars.includes(v)) {
-        if (unitMap.temperature.includes(v)) return `${(lastNonNull * 9/5 + 32).toFixed(2)}°F`;
+        if (unitMap.temperature.includes(v)) return `${(lastNonNull * 9/5 + 32).toFixed(1)}°F`;
         if (unitMap.wind.includes(v)) return `${(lastNonNull * 2.23694).toFixed(2)}mph`;
         if (v.includes('altimeter')) return `${(lastNonNull * 0.0002953).toFixed(2)}inHg`;
         if (unitMap.pressure.includes(v)) return `${(lastNonNull * 0.01).toFixed(2)}mbar`;
-        if (unitMap.precip.includes(v)) return `${(lastNonNull * 0.03937).toFixed(3)}in`;
+        if (unitMap.precip.includes(v)) return formatPrecipitation((lastNonNull * 0.03937));
         if (v.includes('visibility')) {
           const miles = lastNonNull;
           return miles >= 10 ? '10.0mi' : `${miles.toFixed(1)}mi`;
@@ -109,11 +125,11 @@ function convertToAmericanUnits(observations, variables) {
       return unitMap.text.includes(v) && value ? value : '';
     });
     lastNonNullValues[v] = lastNonNull !== null ? (
-      unitMap.temperature.includes(v) ? `${(lastNonNull * 9/5 + 32).toFixed(2)}°F` :
+      unitMap.temperature.includes(v) ? `${(lastNonNull * 9/5 + 32).toFixed(1)}°F` :
       unitMap.wind.includes(v) ? `${(lastNonNull * 2.23694).toFixed(2)}mph` :
       v.includes('altimeter') ? `${(lastNonNull * 0.0002953).toFixed(2)}inHg` :
       unitMap.pressure.includes(v) ? `${(lastNonNull * 0.01).toFixed(2)}mbar` :
-      unitMap.precip.includes(v) ? `${(lastNonNull * 0.03937).toFixed(3)}in` :
+      unitMap.precip.includes(v) ? formatPrecipitation((lastNonNull * 0.03937)) :
       v.includes('visibility') ? (lastNonNull >= 10 ? '10.0mi' : `${lastNonNull.toFixed(1)}mi`) :
       v.includes('ceiling') ? `${(lastNonNull * 3.28084).toFixed(0)}ft` :
       v.includes('pressure_tendency') ? formatPressureTendency(lastNonNull) :
@@ -150,8 +166,8 @@ function updateSummaryTable(observations) {
         const value = observations[v][i];
         if (value !== null && value !== '' && !isNaN(parseFloat(value))) {
           const parsedValue = parseFloat(value);
-          lastValues[v] = v.includes('air_temp') ? `${(parsedValue * 9/5 + 32).toFixed(2)}°F` :
-                          v.includes('precip_accum') ? `${(parsedValue * 0.03937).toFixed(3)}in` : `${parsedValue.toFixed(4)}`;
+          lastValues[v] = v.includes('air_temp') ? `${(parsedValue * 9/5 + 32).toFixed(1)}°F` :
+                          v.includes('precip_accum') ? formatPrecipitation(parsedValue * 0.03937) : `${parsedValue.toFixed(4)}`;
           break;
         }
       }
@@ -159,13 +175,15 @@ function updateSummaryTable(observations) {
   });
   $('#summary-table-body').html(excludedVars.map(v => {
     const label = labelMap[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    const cellClass = v.includes('air_temp') ? 'font-bold text-red-500' : '';
-    return `<tr><td class="border border-gray-200 p-3">${label}</td><td class="${cellClass} border border-gray-200 p-3">${lastValues[v]}</td></tr>`;
+    const cellClass = v.includes('air_temp') ? `font-bold temp-color` : '';
+    const tempStyle = v.includes('air_temp') ? `style="color: ${getTemperatureColor(lastValues[v])}"` : '';
+    return `<tr><td class="border border-gray-200 p-3">${label}</td><td class="${cellClass} border border-gray-200 p-3" ${tempStyle}>${lastValues[v]}</td></tr>`;
   }).join(''));
 }
 
 function displayStationData(station) {
-  if (!station || !station.OBSERVATIONS) {
+  if (!station || !station.OBSERVATIONS || !station.OBSERVATIONS.date_time) {
+    console.error('Invalid station data:', station);
     $('#data-table tbody').html('');
     $('#summary-table-body').html('');
     $('#data-view-title').text(`Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`);
@@ -174,6 +192,7 @@ function displayStationData(station) {
   allObservations = station.OBSERVATIONS;
   allTimestamps = (allObservations.date_time || []).slice().reverse();
   if (!allTimestamps.length) {
+    console.error('No timestamps in station data');
     $('#data-table tbody').html('');
     $('#summary-table-body').html('');
     $('#data-view-title').text(`Station: ${currentStationId || 'Unknown'} | Last Updated: N/A`);
@@ -244,44 +263,55 @@ function displayStationData(station) {
   tableContainer.style.display = 'none';
   setTimeout(() => {
     tableContainer.style.display = 'block';
-    tableContainer.offsetHeight; // Force reflow
+    tableContainer.offsetHeight;
     tableContainer.style.opacity = '1';
   }, 10);
 }
 
-function fetchStationData(stationId, startDate, endDate) {
+async function fetchStationData(stationId, startDate, endDate) {
   if (!stationId) {
+    console.error('No station ID provided');
     $('#data-table tbody').html('');
     $('#summary-table-body').html('');
     $('#data-view-title').text(`Station: Unknown | Last Updated: N/A`);
-    return;
+    return false;
   }
   const formatDate = date => luxon.DateTime.fromJSDate(date).toUTC().toFormat('yyyyMMddHHmm');
   const startFormatted = formatDate(startDate), endFormatted = formatDate(endDate);
   const url = `${SYNOPTIC_API_BASE_URL}stations/timeseries?stid=${stationId}&start=${startFormatted}&end=${endFormatted}&token=${SYNOPTIC_API_TOKEN}&obtimezone=local`;
-  $.ajax({
-    url: url,
-    method: 'GET',
-    success: function(data, status, xhr) {
-      if (data.STATION && data.STATION[0] && data.STATION[0].OBSERVATIONS && data.SUMMARY.RESPONSE_CODE === 1) {
-        currentStationId = data.STATION[0].STID;
-        displayStationData(data.STATION[0]);
-      } else {
-        $('#data-table tbody').html('');
-        $('#summary-table-body').html('');
-        $('#data-view-title').text(`Station: ${stationId} | Last Updated: N/A`);
-        elements.locationError.textContent = 'Error: API rate limit exceeded.';
-        elements.locationError.classList.remove('hidden');
-      }
-    },
-    error: function(xhr) {
+  console.log(`Fetching Synoptic data for station ${stationId}: ${url}`);
+  try {
+    const response = await new Promise((resolve, reject) => {
+      $.ajax({
+        url: url,
+        method: 'GET',
+        success: (data, status, xhr) => resolve({ data, status, xhr }),
+        error: (xhr, status, error) => reject(new Error(`AJAX error: ${status}, ${error}`))
+      });
+    });
+    const data = response.data;
+    console.log('Synoptic API response:', data);
+    if (!data.STATION || !data.STATION[0] || !data.STATION[0].OBSERVATIONS || !data.STATION[0].OBSERVATIONS.date_time) {
+      console.error('Invalid Synoptic data structure:', data);
       $('#data-table tbody').html('');
       $('#summary-table-body').html('');
       $('#data-view-title').text(`Station: ${stationId} | Last Updated: N/A`);
-      elements.locationError.textContent = xhr.status === 429 ? 'Error: API rate limit exceeded.' : 'Error: API rate limit exceeded.';
-      elements.locationError.classList.remove('hidden');
+      return false;
     }
-  });
+    currentStationId = data.STATION[0].STID;
+    allObservations = data.STATION[0].OBSERVATIONS;
+    allTimestamps = (allObservations.date_time || []).slice().reverse();
+    displayStationData(data.STATION[0]);
+    return true;
+  } catch (error) {
+    console.error(`Synoptic API error: ${error.message}`);
+    $('#data-table tbody').html('');
+    $('#summary-table-body').html('');
+    $('#data-view-title').text(`Station: ${stationId} | Last Updated: N/A`);
+    elements.locationError.textContent = error.message.includes('429') ? 'Error: Synoptic API rate limit exceeded. Please try again later.' : `Error: Failed to fetch Synoptic data: ${error.message}`;
+    elements.locationError.classList.remove('hidden');
+    return false;
+  }
 }
 
 $(document).ready(() => {
@@ -289,25 +319,30 @@ $(document).ready(() => {
   const GEOCODING_API = 'https://api.opencagedata.com/geocode/v1/json';
   const NWS_API = 'https://api.weather.gov';
   let selectedLocation = null, currentLocation = null;
+  let activeAlerts = [];
 
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  const fetchWithRetry = async (url, retries = 3) => {
+  const fetchWithRetry = async (url, retries = 3, delay = 2000) => {
     for (let i = 0; i < retries; i++) {
       try {
+        console.log(`Fetching: ${url}`);
         const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
         if (response.status === 429) {
-          elements.locationError.textContent = 'Error: API rate limit exceeded. Please try again later.';
+          console.log(`Rate limit exceeded for ${url}. Retrying after ${delay}ms...`);
+          elements.locationError.textContent = `Error: Rate limit exceeded for ${new URL(url).hostname}. Retrying...`;
           elements.locationError.classList.remove('hidden');
-          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
           continue;
         }
-        if (!response.ok) throw new Error('HTTP error');
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        console.log(`Successful response from ${url}: ${response.status}`);
         return response;
       } catch (error) {
+        console.error(`Fetch error for ${url}: ${error.message}`);
         if (i === retries - 1) throw new Error('Max retries reached');
       }
     }
@@ -316,17 +351,19 @@ $(document).ready(() => {
   const getCachedData = (key, ttl = 15 * 60 * 1000) => {
     const cached = JSON.parse(localStorage.getItem(key));
     if (cached && Date.now() - cached.timestamp < ttl) {
+      console.log(`Using cached data for ${key}`);
       return cached.data;
     }
     return null;
   };
 
   const setCachedData = (key, data) => {
+    console.log(`Caching data for ${key}`);
     localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
   };
 
   const reverseGeocode = async (lat, lng) => {
-    const cacheKey = `${lat}_${lng}`;
+    const cacheKey = `reverse_${lat.toFixed(4)}_${lng.toFixed(4)}`;
     const cached = getCachedData(cacheKey);
     if (cached) return cached;
     const response = await fetchWithRetry(`${GEOCODING_API}?q=${lat}+${lng}&key=${API_KEY}&countrycode=US&limit=1`);
@@ -335,58 +372,6 @@ $(document).ready(() => {
     const result = data.results[0].formatted.replace(/United States of America/, 'U.S.');
     setCachedData(cacheKey, result);
     return result;
-  };
-
-  const getHumidity = async (wfo, gridX, gridY, startTime) => {
-    const cacheKey = `${wfo}_${gridX}_${gridY}`;
-    let humidityData = getCachedData(cacheKey);
-    if (!humidityData) {
-      const response = await fetchWithRetry(`${NWS_API}/gridpoints/${wfo}/${gridX},${gridY}`);
-      const json = await response.json();
-      humidityData = json.properties?.relativeHumidity?.values;
-      if (!humidityData) throw new Error('No humidity data');
-      setCachedData(cacheKey, humidityData);
-    }
-    const targetTime = new Date(startTime).getTime();
-    let closest = 'N/A', minDiff = Infinity;
-    for (const entry of humidityData) {
-      const entryTime = new Date(entry.validTime.split('/')[0]).getTime();
-      const diff = Math.abs(targetTime - entryTime);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = entry.value;
-      }
-    }
-    return closest !== 'N/A' ? `${closest}%` : 'N/A';
-  };
-
-  const fetchGeocoding = async (location) => {
-    const cacheKey = location.toLowerCase().replace(/\s+/g, '_');
-    const cached = getCachedData(cacheKey);
-    if (cached) return cached;
-    const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(location)}&key=${API_KEY}&countrycode=US&limit=5`);
-    const data = await response.json();
-    if (!data.results.length) throw new Error('No geocoding results');
-    const result = {
-      lat: data.results[0].geometry.lat,
-      lng: data.results[0].geometry.lng,
-      name: data.results[0].components.city || data.results[0].formatted.replace(/United States of America/, 'U.S.')
-    };
-    setCachedData(cacheKey, result);
-    return result;
-  };
-
-  const fetchCurrentConditions = async (stationsUrl, wfo, gridX, gridY) => {
-    const stationsResponse = await fetchWithRetry(stationsUrl);
-    const stationsData = await stationsResponse.json();
-    if (!stationsData.features?.length) throw new Error('No stations found');
-    currentStationId = stationsData.features[0].properties.stationIdentifier;
-    const stationId = currentStationId;
-    const obsResponse = await fetchWithRetry(`${NWS_API}/stations/${stationId}/observations/latest`);
-    const obsData = await obsResponse.json();
-    if (!obsData.properties) throw new Error('No observation data');
-    const humidity = await getHumidity(wfo, gridX, gridY, new Date().toISOString());
-    return { obsData, humidity };
   };
 
   const fetchHourlyForecast = async (wfo, gridX, gridY) => {
@@ -419,9 +404,35 @@ $(document).ready(() => {
     return data.features || [];
   };
 
+  const fetchCurrentConditions = async (stationsUrl) => {
+    const stationsResponse = await fetchWithRetry(stationsUrl);
+    const stationsData = await stationsResponse.json();
+    if (!stationsData.features?.length) throw new Error('No stations found');
+    const stationId = stationsData.features[0].properties.stationIdentifier;
+    const obsResponse = await fetchWithRetry(`${NWS_API}/stations/${stationId}/observations/latest`);
+    const obsData = await obsResponse.json();
+    if (!obsData.properties) throw new Error('No observation data');
+    return {
+      stationId,
+      currentConditions: obsData.properties.textDescription || 'N/A',
+      icon: obsData.properties.icon || `${NWS_API}/icons/land/day/skc?size=medium`,
+      nwsData: {
+        temperature: obsData.properties.temperature?.value != null ? `${Math.round((obsData.properties.temperature.value * 9/5) + 32)}°F` : 'N/A',
+        humidity: obsData.properties.relativeHumidity?.value != null ? `${obsData.properties.relativeHumidity.value}%` : 'N/A',
+        dewPoint: obsData.properties.dewpoint?.value != null ? `${Math.round((obsData.properties.dewpoint.value * 9/5) + 32)}°F` : 'N/A',
+        visibility: obsData.properties.visibility?.value != null ? (obsData.properties.visibility.value / 1609.34 >= 10 ? '10.0mi' : `${(obsData.properties.visibility.value / 1609.34).toFixed(1)}mi`) : 'N/A',
+        windSpeed: obsData.properties.windSpeed?.value != null ? `${Math.round((obsData.properties.windSpeed.value * 0.621371))}mph` : 'N/A',
+        windDirection: obsData.properties.windDirection?.value != null ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(obsData.properties.windDirection.value / 45) % 8] : 'N/A',
+        windGust: obsData.properties.windGust?.value != null ? `${Math.round((obsData.properties.windGust.value * 0.621371))}mph` : 'N/A',
+        pressure: obsData.properties.seaLevelPressure?.value != null ? `${(obsData.properties.seaLevelPressure.value / 100).toFixed(2)}mbar` : 'N/A',
+        lastUpdated: obsData.properties.timestamp ? new Date(obsData.properties.timestamp).toLocaleString() : 'N/A'
+      }
+    };
+  };
+
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
     if (!isGeolocation && !location) {
-      elements.locationError.textContent = 'Error: API rate limit exceeded.';
+      elements.locationError.textContent = 'Error: Please enter a valid location.';
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
       return;
@@ -455,46 +466,77 @@ $(document).ready(() => {
       const wfo = pointsData.properties.gridId;
       const gridX = pointsData.properties.gridX;
       const gridY = pointsData.properties.gridY;
-      const { obsData, humidity } = await fetchCurrentConditions(stationsUrl, wfo, gridX, gridY);
-      const currentTempF = obsData.properties.temperature?.value != null ? `${Math.round((obsData.properties.temperature.value * 9/5) + 32)}°F` : 'N/A';
-      const currentConditions = obsData.properties.textDescription || 'N/A';
-      const windSpeed = obsData.properties.windSpeed?.value ? `${Math.round((obsData.properties.windSpeed.value * 0.621371))}mph` : 'N/A';
-      const windDirection = obsData.properties.windDirection?.value != null ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(obsData.properties.windDirection.value / 45) % 8] : 'N/A';
-      const windGust = obsData.properties.windGust?.value ? `${Math.round((obsData.properties.windGust.value * 0.621371))}mph` : 'N/A';
-      const dewPointF = obsData.properties.dewpoint?.value != null ? `${Math.round((obsData.properties.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
-      const pressure = obsData.properties.seaLevelPressure?.value ? `${(obsData.properties.seaLevelPressure.value / 100).toFixed(2)}mbar` : 'N/A';
-      const visibility = obsData.properties.visibility?.value ? (obsData.properties.visibility.value / 1609.34 >= 10 ? '10.0mi' : `${(obsData.properties.visibility.value / 1609.34).toFixed(1)}mi`) : 'N/A';
-      const feelsLikeF = obsData.properties.heatIndex?.value != null ? `${Math.round((obsData.properties.heatIndex.value * 9/5) + 32)}°F` : currentTempF;
-      const rainToday = obsData.properties.precipitationLast24Hours?.value ? `${(obsData.properties.precipitationLast24Hours.value * 0.0393701).toFixed(2)}in` : 'N/A';
-      const lastUpdated = obsData.properties.timestamp ? new Date(obsData.properties.timestamp).toLocaleString() : 'N/A';
+      const { stationId, currentConditions, icon, nwsData } = await fetchCurrentConditions(stationsUrl);
+      currentStationId = stationId;
+
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const synopticSuccess = await fetchStationData(stationId, startDate, endDate);
+      let displayData = nwsData;
+      let lastUpdated = nwsData.lastUpdated;
+      if (synopticSuccess && allObservations && allTimestamps.length) {
+        const observations = allObservations;
+        const timestamps = allTimestamps;
+        const variables = [
+          'air_temp_set_1', 'relative_humidity_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d',
+          'visibility_set_1', 'wind_speed_set_1', 'wind_gust_set_1', 'wind_cardinal_direction_set_1d',
+          'pressure_set_1d', 'precip_accum_24_hour_set_1', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'
+        ];
+        const { lastNonNullValues } = convertToAmericanUnits(observations, variables);
+        displayData = {
+          temperature: lastNonNullValues['air_temp_set_1'] || nwsData.temperature,
+          humidity: lastNonNullValues['relative_humidity_set_1'] || nwsData.humidity,
+          dewPoint: lastNonNullValues['dew_point_temperature_set_1d'] || nwsData.dewPoint,
+          visibility: lastNonNullValues['visibility_set_1'] || nwsData.visibility,
+          windSpeed: lastNonNullValues['wind_speed_set_1'] || nwsData.windSpeed,
+          windDirection: lastNonNullValues['wind_cardinal_direction_set_1d'] || nwsData.windDirection,
+          windGust: lastNonNullValues['wind_gust_set_1'] || nwsData.windGust,
+          pressure: lastNonNullValues['pressure_set_1d'] || nwsData.pressure,
+          precip24Hour: lastNonNullValues['precip_accum_24_hour_set_1'] || 'N/A',
+          tempHigh24Hour: lastNonNullValues['air_temp_high_24_hour_set_1'] || 'N/A',
+          tempLow24Hour: lastNonNullValues['air_temp_low_24_hour_set_1'] || 'N/A',
+          lastUpdated: timestamps[0] ? luxon.DateTime.fromISO(timestamps[0], { zone: 'America/Chicago' }).toFormat('MM/dd/yyyy h:mm a') : nwsData.lastUpdated
+        };
+        lastUpdated = displayData.lastUpdated;
+      } else {
+        console.warn('Using NWS data as fallback for "Now" section due to Synoptic data failure');
+        displayData = {
+          ...nwsData,
+          precip24Hour: 'N/A',
+          tempHigh24Hour: 'N/A',
+          tempLow24Hour: 'N/A'
+        };
+      }
+
       const hourlyData = await fetchHourlyForecast(wfo, gridX, gridY);
-      const alerts = await fetchAlerts(lat, lng);
+      activeAlerts = await fetchAlerts(lat, lng);
       const forecastData = await fetchSevenDayForecast(wfo, gridX, gridY);
       const periods = forecastData.properties.periods;
       elements.header.textContent = locationName;
       currentLocation = locationName;
       elements.now.innerHTML = `
         <div class="weather-card">
-          <div class="grid grid-cols-1 gap-4 text-center">
-            <p class="text-6xl font-extrabold text-blue-600" style="color: var(--accent-color)">${currentTempF}</p>
-            <img src="${obsData.properties.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${currentConditions}" class="mx-auto w-24 h-24">
+          <div class="grid grid-cols-1 gap-6 text-center">
+            <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
+            <img src="${icon}" alt="${currentConditions}" class="mx-auto w-24 h-24">
             <p class="text-xl font-semibold">${currentConditions}</p>
           </div>
-          <div class="grid grid-cols-2 gap-4 mt-4">
-            <div class="bg-card p-3 rounded-lg shadow">
-              <p class="text-base">Feels Like: <span style="color: var(--accent-color)">${feelsLikeF}</span></p>
-              <p class="text-base">Humidity: <span style="color: var(--highlight-color)">${humidity}</span></p>
-              <p class="text-base">Dew Point: <span style="color: var(--accent-color)">${dewPointF}</span></p>
-              <p class="text-base">Visibility: <span style="color: var(--highlight-color)">${visibility}</span></p>
+          <div class="grid grid-cols-2 gap-6 mt-6">
+            <div class="bg-card p-4 rounded-lg shadow">
+              <p class="text-base mb-2">Feels Like: <span style="color: var(--temp-color)">${displayData.heat_index || displayData.temperature}</span></p>
+              <p class="text-base mb-2">Humidity: <span style="color: var(--humidity-color)">${displayData.humidity}</span></p>
+              <p class="text-base mb-2">Dew Point: <span style="color: var(--dewpoint-color)">${displayData.dewPoint}</span></p>
+              <p class="text-base mb-2">Wind: <span style="color: var(--wind-color)">${displayData.windSpeed} ${displayData.windDirection}</span></p>
+              <p class="text-base">Wind Gust: <span style="color: var(--wind-color)">${displayData.windGust}</span></p>
             </div>
-            <div class="bg-card p-3 rounded-lg shadow">
-              <p class="text-base">Wind: <span style="color: var(--accent-color)">${windSpeed} ${windDirection}</span></p>
-              <p class="text-base">Wind Gust: <span style="color: var(--highlight-color)">${windGust}</span></p>
-              <p class="text-base">Pressure: <span style="color: var(--accent-color)">${pressure}</span></p>
-              <p class="text-base">Rain Today: <span style="color: var(--highlight-color)">${rainToday}</span></p>
+            <div class="bg-card p-4 rounded-lg shadow">
+              <p class="text-base mb-2">Pressure: <span style="color: var(--pressure-color)">${displayData.pressure}</span></p>
+              <p class="text-base mb-2">24hr Precip: <span style="color: var(--precip-color)">${displayData.precip24Hour}</span></p>
+              <p class="text-base mb-2">24hr High: <span style="color: var(--temp-color)">${displayData.tempHigh24Hour}</span></p>
+              <p class="text-base">24hr Low: <span style="color: var(--temp-color)">${displayData.tempLow24Hour}</span></p>
             </div>
           </div>
-          <div class="bg-card p-3 rounded-lg shadow mt-4">
+          <div class="bg-card p-4 rounded-lg shadow mt-6">
             <p class="text-base">Last Updated: <span>${lastUpdated}</span></p>
             <p class="text-sm text-gray-500" style="color: var(--text-color)">Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
           </div>
@@ -508,18 +550,16 @@ $(document).ready(() => {
       }).slice(0, 24);
       for (const period of hourlyPeriods) {
         const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
-        const humidity = await getHumidity(wfo, gridX, gridY, period.startTime);
         const chanceOfRain = period.probabilityOfPrecipitation?.value ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
         const row = document.createElement('div');
         row.className = 'hour-row';
         row.innerHTML = `
           <div class="hour-cell font-medium">${timeStr}</div>
-          <div class="hour-cell">${tempF}</div>
+          <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
           <div class="hour-cell"><img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="mx-auto w-10 h-10"></div>
           <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
           <div class="hour-cell">Rain: ${chanceOfRain}</div>
-          <div class="hour-cell">Humidity: ${humidity}</div>
         `;
         elements.hourly.appendChild(row);
       }
@@ -528,16 +568,14 @@ $(document).ready(() => {
       while (i < periods.length && dayCount < 7) {
         const period = periods[i];
         const forecastText = period.shortForecast || 'N/A';
-        const humidity = await getHumidity(wfo, gridX, gridY, period.startTime);
         const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
         const dayElement = document.createElement('div');
         dayElement.className = 'day-item';
         dayElement.innerHTML = `
           <p class="font-medium">${period.name}</p>
-          <p>${period.isDaytime ? 'High' : 'Low'}: ${tempF}</p>
+          <p>${period.isDaytime ? 'High' : 'Low'}: <span class="temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</span></p>
           <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${forecastText}" class="mt-1 w-10 h-10">
           <p>${forecastText}</p>
-          <p>Humidity: ${humidity}</p>
         `;
         elements.sevenDay.appendChild(dayElement);
         i++;
@@ -545,22 +583,29 @@ $(document).ready(() => {
           dayCount++;
         }
       }
-      elements.alertsCount.textContent = alerts.length;
-      elements.alertsCount.classList.toggle('hidden', alerts.length === 0);
+      elements.alertsCount.textContent = activeAlerts.length;
+      elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
-      elements.alertsList.innerHTML = alerts.length ? alerts.map((alert, index) => `
-        <div class="alert-item">
-          <p class="alert-title" data-alert-index="${index}">${alert.properties.headline || alert.properties.event || 'Alert'}</p>
-          <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
-        </div>
-      `).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
+      elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => {
+        const severity = alert.properties.severity?.toLowerCase() || 'low';
+        return `
+          <div class="alert-item ${severity}" data-alert-index="${index}">
+            <p class="alert-title" data-alert-index="${index}">
+              <span>${alert.properties.headline || alert.properties.event || 'Alert'}</span>
+              <span class="severity ${severity}">${alert.properties.severity || 'Unknown'}</span>
+            </p>
+            <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
+          </div>
+        `;
+      }).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
       elements.loading.classList.add('hidden');
       elements.result.classList.remove('hidden');
       elements.tabs.classList.remove('hidden');
       selectedLocation = null;
     } catch (e) {
+      console.error(`Weather fetch error: ${e.message}`);
       elements.loading.classList.add('hidden');
-      elements.locationError.textContent = 'Error: API rate limit exceeded.';
+      elements.locationError.textContent = e.message.includes('rate limit') ? `Error: API rate limit exceeded. Please try again later.` : `Error: ${e.message}`;
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
       elements.result.classList.add('hidden');
@@ -568,6 +613,22 @@ $(document).ready(() => {
       elements.alertsButton.classList.add('hidden');
     }
   }
+
+  const fetchGeocoding = async (location) => {
+    const cacheKey = location.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
+    const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(location)}&key=${API_KEY}&countrycode=US&limit=3`);
+    const data = await response.json();
+    if (!data.results.length) throw new Error('No geocoding results');
+    const result = {
+      lat: data.results[0].geometry.lat,
+      lng: data.results[0].geometry.lng,
+      name: data.results[0].components.city || data.results[0].formatted.replace(/United States of America/, 'U.S.')
+    };
+    setCachedData(cacheKey, result);
+    return result;
+  };
 
   elements.locationInput.addEventListener('input', (() => {
     let timeout;
@@ -581,7 +642,14 @@ $(document).ready(() => {
           return;
         }
         try {
-          const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
+          const cacheKey = query.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+          const cached = getCachedData(cacheKey);
+          if (cached) {
+            elements.autocomplete.innerHTML = `<div class="autocomplete-item">${cached.name}</div>`;
+            elements.autocomplete.classList.remove('hidden');
+            return;
+          }
+          const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=3`);
           const data = await response.json();
           elements.autocomplete.innerHTML = '';
           if (data.results.length) {
@@ -602,15 +670,16 @@ $(document).ready(() => {
             elements.autocomplete.classList.remove('hidden');
           } else {
             elements.autocomplete.classList.add('hidden');
-            elements.locationError.textContent = 'Error: API rate limit exceeded.';
+            elements.locationError.textContent = 'No results found for the entered location.';
             elements.locationError.classList.remove('hidden');
           }
         } catch (error) {
+          console.error(`Geocoding error: ${error.message}`);
           elements.autocomplete.classList.add('hidden');
-          elements.locationError.textContent = 'Error: API rate limit exceeded.';
+          elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: OpenCage API rate limit exceeded. Please try again later.' : 'Error: Failed to fetch location data.';
           elements.locationError.classList.remove('hidden');
         }
-      }, 300);
+      }, 100);
     };
   })());
 
@@ -715,8 +784,9 @@ $(document).ready(() => {
             await fetchWeather(locationName, latitude, longitude, true);
             geolocationMessage.classList.add('hidden');
           } catch (error) {
+            console.error(`Geolocation error: ${error.message}`);
             geolocationMessage.classList.add('hidden');
-            elements.locationError.textContent = 'Error: API rate limit exceeded.';
+            elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: OpenCage API rate limit exceeded. Please try again later.' : 'Error: Failed to fetch location data.';
             elements.locationError.classList.remove('hidden');
           }
         },
