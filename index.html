@@ -4,90 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weather App</title>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="header">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center">
-        <span id="clock" class="text-lg font-semibold mr-4"></span>
-        <h1 id="location-name-header" class="text-center cursor-pointer hover:text-gray-200" title="Change location">Weather App</h1>
-      </div>
-      <div class="flex space-x-2">
-        <button id="alerts-button" class="header-button hidden" title="Alerts">
-          <i class="fas fa-exclamation-triangle"></i>
-          <span id="alerts-count" class="badge hidden">0</span>
-        </button>
-        <button id="settings-button" class="header-button" title="Settings">
-          <i class="fas fa-cog"></i>
-        </button>
-      </div>
+  <header class="header">
+    <h1 id="location-name-header">Weather App</h1>
+    <div class="header-buttons">
+      <button id="alerts-button" class="header-button"><i class="fas fa-exclamation-triangle"></i><span id="alerts-count" class="hidden"></span></button>
+      <button id="settings-button" class="header-button"><i class="fas fa-cog"></i></button>
+      <div id="clock"></div>
     </div>
-  </div>
+  </header>
+
   <div id="tabs" class="tabs hidden">
-    <div class="tab-button active" data-tab="now">Now</div>
-    <div class="tab-button" data-tab="hourly">Hourly</div>
-    <div class="tab-button" data-tab="7-day">7 Day</div>
-    <div class="tab-button" data-tab="station-data">Station Data</div>
+    <button class="tab-button active" data-tab="now">Now</button>
+    <button class="tab-button" data-tab="hourly">Hourly</button>
+    <button class="tab-button" data-tab="7-day">7-Day</button>
   </div>
+
   <div id="starter-screen" class="starter-screen">
     <div class="weather-card">
-      <h2 class="text-2xl font-bold mb-4">Enter a Location</h2>
-      <input id="location" type="text" placeholder="City or ZIP code" class="w-full p-3 rounded-lg border border-gray-300 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <div id="autocomplete-dropdown" class="hidden"></div>
-      <p id="location-error" class="text-red-500 mb-4 hidden"></p>
-      <button id="auto-locate" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600">Use Current Location</button>
-      <p id="geolocation-message" class="text-gray-600 mt-4 hidden">Getting your location...</p>
+      <input type="text" id="location" placeholder="Enter location (e.g., Chicago, IL)" autocomplete="off">
+      <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
+      <p id="location-error" class="hidden"></p>
+      <button id="auto-locate">Use Current Location</button>
+      <p id="geolocation-message" class="hidden">Locating...</p>
     </div>
   </div>
-  <div id="loading" class="weather-card hidden">
-    <p class="text-xl">Loading...</p>
-  </div>
+
   <div id="weather-result" class="hidden">
-    <div id="now-section" class="tab-content active"></div>
-    <div id="hourly-section" class="tab-content"></div>
-    <div id="7-day-section" class="tab-content"></div>
-    <div id="station-data-section" class="tab-content">
-      <h2 id="data-view-title" class="text-xl font-semibold mb-4">Station Data</h2>
-      <div id="data-table-container">
-        <table id="data-table">
-          <thead><tr></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <h2 class="text-xl font-semibold my-4">Latest Observations</h2>
-      <div>
-        <table id="summary-table" class="w-full">
-          <thead><tr></tr></thead>
-          <tbody id="summary-table-body"></tbody>
-        </table>
-      </div>
+    <div id="now-section" class="tab-content active">
+      <div id="now-section-content"></div>
+    </div>
+    <div id="hourly-section" class="tab-content">
+      <div id="hourly-section-content"></div>
+    </div>
+    <div id="7-day-section" class="tab-content">
+      <div id="7-day-section-content"></div>
     </div>
   </div>
+
   <div id="alerts-section" class="overlay-section">
     <div class="overlay-header">
-      <button class="back-button">← Back</button>
-      <h2 class="text-xl font-semibold ml-4">Alerts</h2>
+      <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
+      <h2>Active Alerts</h2>
     </div>
-    <div class="overlay-content" id="alerts-list"></div>
+    <div class="overlay-content">
+      <div id="alerts-list"></div>
+    </div>
   </div>
+
   <div id="settings-section" class="overlay-section">
     <div class="overlay-header">
-      <button class="back-button">← Back</button>
-      <h2 class="text-xl font-semibold ml-4">Settings</h2>
+      <button class="back-button header-button"><i class="fas fa-arrow-left"></i></button>
+      <h2>Settings</h2>
     </div>
     <div class="overlay-content">
       <div class="settings-toggle">
         <span>Dark Mode</span>
-        <input type="checkbox" id="theme-toggle">
+        <label class="switch">
+          <input type="checkbox" id="theme-toggle">
+          <span class="slider"></span>
+        </label>
       </div>
-      <p class="text-base text-opacity-70" style="color: var(--text-color)">Version: 1.1</p>
     </div>
   </div>
+
+  <div id="data-table-container" class="hidden">
+    <h2 id="data-view-title" class="text-xl font-bold mb-4"></h2>
+    <table id="data-table">
+      <thead><tr></tr></thead>
+      <tbody id="data-table-body"></tbody>
+    </table>
+    <table id="summary-table">
+      <thead><tr><th>Summary</th><th>Value</th></tr></thead>
+      <tbody id="summary-table-body"></tbody>
+    </table>
+  </div>
+
+  <div id="loading"></div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://moment.github.io/luxon/global/luxon.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
