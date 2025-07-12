@@ -181,6 +181,7 @@ async function fetchStationData(stationId, startDate, endDate) {
     displayStationData(response.STATION[0]);
     return true;
   } catch (error) {
+    console.error('FetchStationData Error:', error.message, error.status);
     elements.dataTableBody.innerHTML = '';
     elements.summaryTableBody.innerHTML = '';
     document.getElementById('data-view-title').textContent = `Station: ${stationId} | Last Updated: N/A`;
@@ -192,7 +193,7 @@ async function fetchStationData(stationId, startDate, endDate) {
   }
 }
 
-$(document).ready(() => {
+document.addEventListener('DOMContentLoaded', () => {
   const API_KEY = '86f857c7c80b4ba3bfe3afdb9fefb393';
   const GEOCODING_API = 'https://api.opencagedata.com/geocode/v1/json';
   const NWS_API = 'https://api.weather.gov';
@@ -203,10 +204,21 @@ $(document).ready(() => {
   elements.themeToggle = document.getElementById('theme-toggle');
   elements.themeToggle.checked = savedTheme === 'dark';
 
-  // Hide tabs initially to ensure they don't show on the search screen
+  // Initialize UI state
   elements.tabs.classList.add('hidden');
   elements.result.classList.add('hidden');
   elements.starter.classList.remove('hidden');
+  elements.alerts.classList.remove('active');
+  elements.settings.classList.remove('active');
+  elements.autocomplete.classList.add('hidden');
+  elements.locationError.classList.add('hidden');
+
+  // Ensure tabs are hidden on search menu
+  setTimeout(() => {
+    elements.tabs.classList.add('hidden');
+    elements.result.classList.add('hidden');
+    elements.starter.classList.remove('hidden');
+  }, 0);
 
   const getCachedData = (key, ttl = 3600000) => {
     const cached = JSON.parse(localStorage.getItem(key));
@@ -223,6 +235,7 @@ $(document).ready(() => {
       try {
         const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
         if (response.status === 429) {
+          console.error('FetchWithRetry Error: API rate limit exceeded for', url);
           elements.locationError.textContent = 'Error: API rate limit exceeded. Please try again later.';
           elements.locationError.classList.remove('hidden');
           await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
@@ -255,7 +268,7 @@ $(document).ready(() => {
     const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
     const data = await response.json();
     if (!data.results.length) throw new Error('No geocoding results');
-    const result = { name: data.results[0].formatted.replace(/United States of America/, 'U.S.'), lat: data.results[0].geometry.lat, lng: data.results[0].geometry.lng };
+    const result = { name: data.results[0].formatted.replace(/United States of America/, 'U.S.'), lat: parseFloat(data.results[0].geometry.lat), lng: parseFloat(data.results[0].geometry.lng) };
     setCachedData(cacheKey, result);
     return result;
   };
@@ -316,12 +329,14 @@ $(document).ready(() => {
         }
       };
     } catch (error) {
+      console.error('FetchCurrentConditions Error:', error.message);
       return { stationId: null, currentConditions: 'N/A', icon: `${NWS_API}/icons/land/day/skc?size=medium`, nwsData: { temperature: 'N/A', humidity: 'N/A', dewPoint: 'N/A', visibility: 'N/A', windSpeed: 'N/A', windDirection: 'N/A', windGust: 'N/A', pressure: 'N/A', lastUpdated: 'N/A' } };
     }
   };
 
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
     if (!location && !isGeolocation) {
+      console.error('FetchWeather Error: No location provided');
       elements.locationError.textContent = 'Error: Please enter a valid location.';
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
@@ -340,18 +355,21 @@ $(document).ready(() => {
       if (isGeolocation) {
         locationName = location;
       } else if (selectedLocation?.formatted.replace(/United States of America/, 'U.S.') === location) {
-        lat = selectedLocation.geometry.lat;
-        lng = selectedLocation.geometry.lng;
+        lat = parseFloat(selectedLocation.geometry.lat);
+        lng = parseFloat(selectedLocation.geometry.lng);
         locationName = selectedLocation.formatted.replace(/United States of America/, 'U.S.');
       } else {
         const geoData = await fetchGeocoding(location);
-        lat = geoData.lat;
-        lng = geoData.lng;
+        lat = parseFloat(geoData.lat);
+        lng = parseFloat(geoData.lng);
         locationName = geoData.name;
+      }
+      if (isNaN(lat) || isNaN(lng)) {
+        console.error('FetchWeather Error: Invalid coordinates', { lat, lng });
+        throw new Error('Invalid coordinates');
       }
       lat = Number(lat.toFixed(4));
       lng = Number(lng.toFixed(4));
-      if (isNaN(lat) || isNaN(lng)) throw new Error('Invalid coordinates');
 
       const pointsResponse = await fetchWithRetry(`${NWS_API}/points/${lat},${lng}`);
       const pointsData = await pointsResponse.json();
@@ -488,12 +506,21 @@ $(document).ready(() => {
           <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
         </div>
       `).join('') : '<p class="p-2 text-gray-600">No active alerts.</p>';
+
+      // Ensure "Now" tab is active
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      const nowTab = document.querySelector('[data-tab="now"]');
+      if (nowTab) nowTab.classList.add('active');
+      elements.now.classList.add('active');
+
       elements.loading.classList.add('hidden');
       elements.result.classList.remove('hidden');
       elements.tabs.classList.remove('hidden');
       elements.starter.classList.add('hidden');
       selectedLocation = null;
     } catch (e) {
+      console.error('FetchWeather Error:', e.message);
       elements.loading.classList.add('hidden');
       elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${e.message}`;
       elements.locationError.classList.remove('hidden');
@@ -533,6 +560,7 @@ $(document).ready(() => {
         </div>
       `).join('') : '<div class="autocomplete-item">No results found</div>';
     } catch (error) {
+      console.error('Autocomplete Error:', error.message);
       elements.autocomplete.innerHTML = '<div class="autocomplete-item">Error fetching suggestions</div>';
       if (error.message.includes('rate limit')) {
         elements.locationError.textContent = 'Error: API rate limit exceeded. Please try again later.';
@@ -549,12 +577,21 @@ $(document).ready(() => {
     }
   });
 
-  $(document).on('click', '.autocomplete-item', function() {
-    const lat = $(this).data('lat'), lng = $(this).data('lng'), name = $(this).data('name');
-    selectedLocation = { geometry: { lat, lng }, formatted: name };
-    elements.locationInput.value = name;
-    elements.autocomplete.classList.add('hidden');
-    fetchWeather(name, lat, lng);
+  document.addEventListener('click', (e) => {
+    const item = e.target.closest('.autocomplete-item');
+    if (item) {
+      const lat = parseFloat(item.dataset.lat), lng = parseFloat(item.dataset.lng), name = item.dataset.name;
+      if (isNaN(lat) || isNaN(lng)) {
+        console.error('Autocomplete Click Error: Invalid coordinates', { lat, lng });
+        elements.locationError.textContent = 'Error: Invalid location coordinates.';
+        elements.locationError.classList.remove('hidden');
+        return;
+      }
+      selectedLocation = { geometry: { lat, lng }, formatted: name };
+      elements.locationInput.value = name;
+      elements.autocomplete.classList.add('hidden');
+      fetchWeather(name, lat, lng);
+    }
   });
 
   elements.header.addEventListener('click', () => {
@@ -566,39 +603,54 @@ $(document).ready(() => {
     elements.locationInput.focus();
     elements.autocomplete.classList.add('hidden');
     elements.locationError.classList.add('hidden');
+    setTimeout(() => elements.tabs.classList.add('hidden'), 0);
   });
 
-  $(elements.tabs).on('click', '.tab-button', function() {
-    $('.tab-button').removeClass('active');
-    $(this).addClass('active');
-    $('.tab-content').removeClass('active');
-    $(`#${$(this).data('tab')}-section`).addClass('active');
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      button.classList.add('active');
+      const tabSection = document.getElementById(`${button.dataset.tab}-section`);
+      if (tabSection) tabSection.classList.add('active');
+    });
   });
 
-  $(elements.alertsList).on('click', '.alert-title', function() {
-    $(`#alert-description-${$(this).data('alert-index')}`).toggleClass('active');
+  elements.alertsList.addEventListener('click', (e) => {
+    const title = e.target.closest('.alert-title');
+    if (title) {
+      document.getElementById(`alert-description-${title.dataset.alertIndex}`).classList.toggle('active');
+    }
   });
 
-  $(elements.alertsButton).on('click', () => {
+  elements.alertsButton.addEventListener('click', () => {
     elements.alerts.classList.add('active');
     elements.result.classList.add('hidden');
     elements.tabs.classList.add('hidden');
     elements.starter.classList.add('hidden');
   });
 
-  $(elements.settingsButton).on('click', () => {
+  elements.settingsButton.addEventListener('click', () => {
     elements.settings.classList.add('active');
     elements.result.classList.add('hidden');
     elements.tabs.classList.add('hidden');
     elements.starter.classList.add('hidden');
   });
 
-  $('.back-button').on('click', () => {
-    elements.alerts.classList.remove('active');
-    elements.settings.classList.remove('active');
-    elements.result.classList.remove('hidden');
-    elements.tabs.classList.remove('hidden');
-    elements.starter.classList.add('hidden');
+  document.querySelectorAll('.back-button').forEach(button => {
+    button.addEventListener('click', () => {
+      elements.alerts.classList.remove('active');
+      elements.settings.classList.remove('active');
+      elements.result.classList.remove('hidden');
+      elements.tabs.classList.remove('hidden');
+      elements.starter.classList.add('hidden');
+      // Ensure "Now" tab is active
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      const nowTab = document.querySelector('[data-tab="now"]');
+      if (nowTab) nowTab.classList.add('active');
+      elements.now.classList.add('active');
+    });
   });
 
   elements.themeToggle.addEventListener('change', (e) => {
@@ -609,6 +661,7 @@ $(document).ready(() => {
 
   elements.autoLocate.addEventListener('click', () => {
     if (!navigator.geolocation) {
+      console.error('Geolocation Error: Not supported by browser');
       elements.locationError.textContent = 'Error: Geolocation is not supported by your browser.';
       elements.locationError.classList.remove('hidden');
       return;
@@ -624,12 +677,14 @@ $(document).ready(() => {
           elements.geolocationMessage.classList.add('hidden');
           fetchWeather(locationName, latitude, longitude, true);
         } catch (error) {
+          console.error('Geolocation Error:', error.message);
           elements.geolocationMessage.classList.add('hidden');
           elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${error.message}`;
           elements.locationError.classList.remove('hidden');
         }
       },
       (error) => {
+        console.error(`Geolocation Error: Denied - ${error.message}`);
         elements.geolocationMessage.classList.add('hidden');
         elements.locationError.textContent = `Error: Geolocation denied - ${error.message}`;
         elements.locationError.classList.remove('hidden');
