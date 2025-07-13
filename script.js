@@ -46,11 +46,11 @@ function getTemperatureColor(tempF) {
   const ranges = Object.keys(tempPalette).map(range => {
     const [max, min] = range.split('–').map(Number);
     return { min, max, color: tempPalette[range] };
-  }).sort((a, b) => b.min - a.min); // Sort descending to check higher ranges first
+  }).sort((a, b) => b.min - a.min);
   for (let range of ranges) {
     if (value >= range.min && value < range.max) return range.color;
   }
-  return value >= 120 ? tempPalette["120–115"] : tempPalette["-55–-60"]; // Handle out-of-range values
+  return value >= 120 ? tempPalette["120–115"] : tempPalette["-55–-60"];
 }
 
 function formatPrecipitation(value) {
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.autocomplete.classList.add('hidden');
   elements.locationError.classList.add('hidden');
   elements.loading.classList.add('hidden');
-  elements.starter.style.display = 'block';
+  elements.starter.style.display = 'flex';
   elements.result.style.display = 'none';
   elements.tabs.style.display = 'none';
   console.log('Initial UI state: starter visible, tabs and result hidden');
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
       elements.starter.classList.remove('hidden');
-      elements.starter.style.display = 'block';
+      elements.starter.style.display = 'flex';
       elements.result.classList.add('hidden');
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.locationError.textContent = 'Error: Data fetch timed out. Please try again.';
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
-      elements.starter.style.display = 'block';
+      elements.starter.style.display = 'flex';
       elements.result.classList.add('hidden');
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${e.message}`;
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
-      elements.starter.style.display = 'block';
+      elements.starter.style.display = 'flex';
       elements.result.classList.add('hidden');
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
@@ -691,16 +691,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   elements.header.addEventListener('click', () => {
     elements.starter.classList.remove('hidden');
-    elements.starter.style.display = 'block';
+    elements.starter.style.display = 'flex';
+    elements.starter.style.opacity = '1';
     elements.result.classList.add('hidden');
     elements.result.style.display = 'none';
+    elements.result.style.opacity = '0';
     elements.tabs.classList.add('hidden');
     elements.tabs.style.display = 'none';
+    elements.tabs.style.opacity = '0';
     elements.alerts.classList.remove('active');
     elements.settings.classList.remove('active');
+    elements.locationInput.value = '';
     elements.locationInput.focus();
     elements.autocomplete.classList.add('hidden');
     elements.locationError.classList.add('hidden');
+    elements.loading.classList.add('hidden');
     console.log('Header clicked: starter shown, tabs/result hidden');
   });
 
