@@ -26,7 +26,7 @@ const elements = {
 const SYNOPTIC_API_TOKEN = '81ebbb6ea61247ac85cb88a96d97fcf2';
 const SYNOPTIC_API_BASE_URL = 'https://api.synopticdata.com/v2/';
 let allObservations = [], allTimestamps = [], currentStationId = null, currentTimezone = 'America/Chicago';
-let isSearchActive = true; // Track if search screen was active before overlay
+let isSearchActive = true;
 const pressureTendencyCodes = { 0: "Rising, then falling", 1: "Rising slowly", 2: "Rising steadily", 3: "Rising quickly", 4: "Steady", 5: "Falling, then rising", 6: "Falling slowly", 7: "Falling steadily", 8: "Falling quickly" };
 
 function getTemperatureColor(tempF) {
@@ -67,7 +67,7 @@ function convertToAmericanUnits(observations, variables) {
   const excludedVars = ['air_temp_high_6_hour_set_1', 'air_temp_low_6_hour_set_1', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1', 'precip_accum_one_hour_set_1', 'precip_accum_three_hour_set_1', 'precip_accum_six_hour_set_1', 'precip_accum_24_hour_set_1'];
   const unitMap = {
     temperature: ['air_temp_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'wet_bulb_temperature_set_1', 'wet_bulb_temp_set_1d', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'],
-    wind: ['wind_speed_set_1', 'wind_gust_set_1', 'peak_wind_speed_set_1'],
+    wind: ['wind_speed_set_1', 'wind_gust_set_1'],
     pressure: ['pressure_set_1d', 'sea_level_pressure_set_1d'],
     precip: ['precip_accum', 'precip_accum_24_hour_set_1', 'precip_accum_one_hour_set_1', 'precip_accum_three_hour_set_1', 'precip_accum_six_hour_set_1'],
     visibility: ['visibility_set_1'],
@@ -75,7 +75,8 @@ function convertToAmericanUnits(observations, variables) {
     altimeter: ['altimeter_set_1'],
     wind_direction: ['wind_direction_set_1', 'peak_wind_direction_set_1'],
     percentage: ['relative_humidity_set_1'],
-    text: ['weather_condition_set_1d', 'weather_summary_set_1d', 'wind_cardinal_direction_set_1d', 'pressure_tendency_set_1']
+    text: ['weather_condition_set_1d', 'weather_summary_set_1d', 'wind_cardinal_direction_set_1d', 'pressure_tendency_set_1'],
+    peak_wind: ['peak_wind_speed_set_1']
   };
 
   const convertValue = (v, value) => {
@@ -83,6 +84,7 @@ function convertToAmericanUnits(observations, variables) {
     const num = parseFloat(value);
     if (unitMap.temperature.includes(v)) return `${(num * 9/5 + 32).toFixed(1)}°F`;
     if (unitMap.wind.includes(v)) return `${(num * 2.23694).toFixed(2)}mph`;
+    if (unitMap.peak_wind.includes(v)) return `${(num * 2.23694).toFixed(2)}mph`;
     if (v.includes('altimeter')) return `${(num * 0.0002953).toFixed(2)}inHg`;
     if (unitMap.pressure.includes(v)) return `${(num * 0.01).toFixed(2)}mbar`;
     if (unitMap.precip.includes(v)) return formatPrecipitation(num * 0.03937);
@@ -165,7 +167,7 @@ function displayStationData(station) {
     'air_temp_set_1': 'Air Temperature: °F', 'relative_humidity_set_1': 'Relative Humidity: %', 'wind_speed_set_1': 'Wind Speed: mph', 'heat_index_set_1d': 'Heat Index: °F', 'weather_summary_set_1d': 'Weather Summary', 'wind_cardinal_direction_set_1d': 'Wind Cardinal Direction', 'wind_gust_set_1': 'Wind Gust: mph', 'weather_condition_set_1d': 'Weather Condition', 'dew_point_temperature_set_1d': 'Dew Point Temperature: °F', 'visibility_set_1': 'Visibility: miles', 'ceiling_set_1': 'Ceiling Height: ft', 'pressure_set_1d': 'Station Pressure: mbar', 'sea_level_pressure_set_1d': 'Sea Level Pressure: mbar', 'altimeter_set_1': 'Altimeter Setting: inHg', 'pressure_tendency_set_1': 'Pressure Tendency', 'wet_bulb_temp_set_1d': 'Wet Bulb Temperature: °F', 'wind_direction_set_1': 'Wind Direction: °', 'peak_wind_speed_set_1': 'Peak Wind Speed: mph', 'peak_wind_direction_set_1': 'Peak Wind Direction: °'
   };
   const dataTableHead = document.querySelector('#data-table thead tr');
-  dataTableHead.innerHTML = [`<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 bg-gray-800 text-white sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join('');
+  dataTableHead.innerHTML = [`<th class="border border-gray-200 p-3 sticky top-0 z-[110] min-w-[110px]">Date and Time</th>`, ...sortedVariables.map(v => `<th class="border border-gray-200 p-3 sticky top-0 z-[100]">${officialLabels[v] || v.replace('_set_1', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</th>`)].join('');
   elements.dataTableBody.innerHTML = allTimestamps.map((time, index) => {
     const parsedTime = luxon.DateTime.fromISO(time, { zone: currentTimezone }).toFormat('MM/dd/yyyy h:mm a');
     return `<tr><td class="border border-gray-200 p-3 sticky left-0 z-[90] min-w-[110px] bg-[var(--card-bg)]">${parsedTime}</td>${sortedVariables.map(v => `<td class="border border-gray-200 p-3">${convertedObservations[v][index] || ''}</td>`).join('')}</tr>`;
@@ -199,7 +201,6 @@ async function fetchStationData(stationId, startDate, endDate) {
     displayStationData(response.STATION[0]);
     return true;
   } catch (error) {
-    console.error('FetchStationData Error:', error.message, error.status);
     elements.dataTableBody.innerHTML = '';
     elements.summaryTableBody.innerHTML = '';
     document.getElementById('data-view-title').textContent = `Station: ${stationId} | Last Updated: N/A`;
@@ -233,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.starter.style.display = 'flex';
   elements.result.style.display = 'none';
   elements.tabs.style.display = 'none';
-  console.log('Initial UI state: starter visible, tabs and result hidden');
 
   setInterval(updateClock, 1000);
   updateClock();
@@ -250,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
         if (response.status === 429) {
-          console.warn('FetchWithRetry Warning: API rate limit exceeded for', url);
           elements.locationError.textContent = 'Warning: API rate limit exceeded. Retrying...';
           elements.locationError.classList.remove('hidden');
           await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
@@ -260,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return response;
       } catch (error) {
         if (i === retries - 1) throw error;
-        console.warn(`FetchWithRetry Attempt ${i + 1} failed: ${error.message}`);
       }
     }
   };
@@ -277,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setCachedData(cacheKey, result);
       return result;
     } catch (error) {
-      console.error('ReverseGeocode Error:', error.message);
       throw error;
     }
   };
@@ -294,7 +291,11 @@ document.addEventListener('DOMContentLoaded', () => {
       setCachedData(cacheKey, result);
       return result;
     } catch (error) {
-      console.error('FetchGeocoding Error:', error.message);
+      if (error.message.includes('429')) {
+        console.error('FetchGeocoding Error: Open Cage API calls limit reached');
+        elements.locationError.textContent = 'Error: Open Cage API calls limit reached. Please try again later.';
+        elements.locationError.classList.remove('hidden');
+      }
       throw error;
     }
   };
@@ -309,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hourlyData.properties?.periods) throw new Error('No hourly forecast data');
         setCachedData(cacheKey, hourlyData);
       } catch (error) {
-        console.error('FetchHourlyForecast Error:', error.message);
         hourlyData = { properties: { periods: [] } };
       }
     }
@@ -326,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!forecastData.properties?.periods) throw new Error('No 7-day forecast data');
         setCachedData(cacheKey, forecastData);
       } catch (error) {
-        console.error('FetchSevenDayForecast Error:', error.message);
         forecastData = { properties: { periods: [] } };
       }
     }
@@ -339,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       return data.features || [];
     } catch (error) {
-      console.error('FetchAlerts Error:', error.message);
       return [];
     }
   };
@@ -370,15 +368,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       };
     } catch (error) {
-      console.error('FetchCurrentConditions Error:', error.message);
       return { stationId: null, currentConditions: 'N/A', icon: `${NWS_API}/icons/land/day/skc?size=medium`, nwsData: { temperature: 'N/A', humidity: 'N/A', dewPoint: 'N/A', visibility: 'N/A', windSpeed: 'N/A', windDirection: 'N/A', windGust: 'N/A', pressure: 'N/A', lastUpdated: 'N/A' } };
     }
   };
 
   async function fetchWeather(location, lat, lng, isGeolocation = false) {
-    console.log('fetchWeather called with:', { location, lat, lng, isGeolocation });
     if (!location && !isGeolocation) {
-      console.error('FetchWeather Error: No location provided');
       elements.locationError.textContent = 'Error: Please enter a valid location.';
       elements.locationError.classList.remove('hidden');
       elements.loading.classList.add('hidden');
@@ -388,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
-      console.log('No location: starter shown, tabs/result hidden');
       return;
     }
     elements.locationError.classList.add('hidden');
@@ -400,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.result.style.display = 'none';
     elements.tabs.classList.add('hidden');
     elements.tabs.style.display = 'none';
-    console.log('Search started: loading shown, starter/tabs/result hidden');
 
     const timeout = setTimeout(() => {
       elements.loading.classList.add('hidden');
@@ -413,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
-      console.log('Fetch timeout: starter shown, tabs/result hidden');
+      isSearchActive = true;
     }, 10000);
 
     try {
@@ -430,17 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lng = parseFloat(geoData.lng);
         locationName = geoData.name;
       }
-      if (isNaN(lat) || isNaN(lng)) {
-        console.error('FetchWeather Error: Invalid coordinates', { lat, lng });
-        throw new Error('Invalid coordinates');
-      }
+      if (isNaN(lat) || isNaN(lng)) throw new Error('Invalid coordinates');
       lat = Number(lat.toFixed(4));
       lng = Number(lng.toFixed(4));
-      console.log('Coordinates processed:', { lat, lng });
 
       const pointsResponse = await fetchWithRetry(`${NWS_API}/points/${lat},${lng}`);
       const pointsData = await pointsResponse.json();
-      console.log('Points data:', pointsData);
       if (!pointsData.properties) throw new Error('No points data');
       const { observationStations: stationsUrl, gridId: wfo, gridX, gridY, timeZone } = pointsData.properties;
       currentTimezone = timeZone || 'America/Chicago';
@@ -448,7 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const { stationId, currentConditions, icon, nwsData } = await fetchCurrentConditions(stationsUrl);
       currentStationId = stationId;
-      console.log('Current conditions:', { stationId, currentConditions, nwsData });
 
       const endDate = new Date(), startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000);
       const synopticSuccess = await fetchStationData(stationId, startDate, endDate);
@@ -475,14 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         displayData = { ...nwsData, feelsLike: 'N/A', precip24Hour: 'N/A', tempHigh24Hour: 'N/A', tempLow24Hour: 'N/A' };
       }
-      console.log('Display data:', displayData);
 
       const hourlyData = await fetchHourlyForecast(wfo, gridX, gridY);
-      console.log('Hourly data:', hourlyData.properties.periods.slice(0, 3));
       activeAlerts = await fetchAlerts(lat, lng);
-      console.log('Alerts:', activeAlerts.length, activeAlerts);
       const forecastData = await fetchSevenDayForecast(wfo, gridX, gridY);
-      console.log('7-day forecast:', forecastData.properties.periods.slice(0, 3));
       const periods = forecastData.properties.periods;
 
       elements.header.textContent = locationName;
@@ -571,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         dailyPeriods.forEach((dayPeriod, index) => {
           const isToday = dayPeriod.date === today.toISODate();
-          const showDay = !isToday || (isToday && currentHour < 18 && dayPeriod.day); // Show day if not today or before 6 PM
+          const showDay = !isToday || (isToday && currentHour < 18 && dayPeriod.day);
           const dayName = luxon.DateTime.fromISO(dayPeriod.date, { zone: currentTimezone }).toFormat('EEEE, MMM d');
           const dayData = dayPeriod.day || {};
           const nightData = dayPeriod.night || {};
@@ -650,11 +633,9 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.result.style.opacity = '1';
         elements.tabs.style.opacity = '1';
         elements.starter.style.opacity = '0';
-        console.log('Weather data rendered: starter hidden, tabs/result shown');
       }, 10);
       isSearchActive = false;
     } catch (e) {
-      console.error('FetchWeather Error:', e.message);
       clearTimeout(timeout);
       elements.loading.classList.add('hidden');
       elements.loading.style.display = 'none';
@@ -666,7 +647,6 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.result.style.display = 'none';
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
-      console.log('Fetch error: starter shown, tabs/result hidden');
       isSearchActive = true;
     }
   }
@@ -701,10 +681,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `).join('') : '<div class="autocomplete-item">No results found</div>';
     } catch (error) {
-      console.error('Autocomplete Error:', error.message);
       elements.autocomplete.innerHTML = '<div class="autocomplete-item">Error fetching suggestions</div>';
-      if (error.message.includes('rate limit')) {
-        elements.locationError.textContent = 'Error: API rate limit exceeded. Please try again later.';
+      if (error.message.includes('429')) {
+        console.error('Autocomplete Error: Open Cage API calls limit reached');
+        elements.locationError.textContent = 'Error: Open Cage API calls limit reached. Please try again later.';
         elements.locationError.classList.remove('hidden');
       }
     }
@@ -723,7 +703,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (item) {
       const lat = parseFloat(item.dataset.lat), lng = parseFloat(item.dataset.lng), name = item.dataset.name;
       if (isNaN(lat) || isNaN(lng)) {
-        console.error('Autocomplete Click Error: Invalid coordinates', { lat, lng });
         elements.locationError.textContent = 'Error: Invalid location coordinates.';
         elements.locationError.classList.remove('hidden');
         return;
@@ -753,7 +732,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.locationError.classList.add('hidden');
     elements.loading.classList.add('hidden');
     elements.loading.style.display = 'none';
-    console.log('Header clicked: starter shown, tabs/result hidden');
     isSearchActive = true;
   });
 
@@ -769,11 +747,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tabSection) {
         tabSection.classList.add('active');
         tabSection.style.display = 'block';
-        // Force re-render to ensure content is positioned correctly
         tabSection.style.opacity = '0';
         setTimeout(() => { tabSection.style.opacity = '1'; }, 10);
       }
-      console.log(`Tab switched to: ${button.dataset.tab}`);
     });
   });
 
@@ -794,7 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.starter.style.display = 'none';
     elements.loading.classList.add('hidden');
     elements.loading.style.display = 'none';
-    console.log('Alerts button clicked: alerts shown, starter/tabs/result hidden');
   });
 
   elements.settingsButton.addEventListener('click', () => {
@@ -807,7 +782,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.starter.style.display = 'none';
     elements.loading.classList.add('hidden');
     elements.loading.style.display = 'none';
-    console.log('Settings button clicked: settings shown, starter/tabs/result hidden');
   });
 
   document.querySelectorAll('.back-button').forEach(button => {
@@ -824,7 +798,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.tabs.style.display = 'none';
         elements.loading.classList.add('hidden');
         elements.loading.style.display = 'none';
-        console.log('Back button clicked from search: starter shown, tabs/result hidden');
       } else {
         elements.result.classList.remove('hidden');
         elements.result.style.display = 'block';
@@ -843,10 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nowTab) nowTab.classList.add('active');
         elements.now.classList.add('active');
         elements.now.style.display = 'block';
-        // Force re-render to ensure content is positioned correctly
         elements.now.style.opacity = '0';
         setTimeout(() => { elements.now.style.opacity = '1'; }, 10);
-        console.log('Back button clicked: tabs/result shown, starter hidden');
       }
     });
   });
@@ -855,13 +826,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const theme = e.target.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-    console.log(`Theme toggled to: ${theme}`);
   });
 
   elements.autoLocate.addEventListener('click', () => {
     if (!navigator.geolocation) {
-      console.error('Geolocation Error: Not supported by browser');
-      elements.locationError.textContent = 'Error: Geolocation is not supported by your browser.';
+      console.error('Geolocation Error: Geolocation services denied by browser');
+      elements.locationError.textContent = 'Error: Geolocation services denied by browser.';
       elements.locationError.classList.remove('hidden');
       return;
     }
@@ -878,7 +848,6 @@ document.addEventListener('DOMContentLoaded', () => {
           elements.geolocationMessage.classList.add('hidden');
           fetchWeather(locationName, latitude, longitude, true);
         } catch (error) {
-          console.error('Geolocation Error:', error.message);
           elements.geolocationMessage.classList.add('hidden');
           elements.loading.classList.add('hidden');
           elements.loading.style.display = 'none';
@@ -887,11 +856,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
       (error) => {
-        console.error(`Geolocation Error: Denied - ${error.message}`);
+        console.error('Geolocation Error: Geolocation services denied by browser');
         elements.geolocationMessage.classList.add('hidden');
         elements.loading.classList.add('hidden');
         elements.loading.style.display = 'none';
-        elements.locationError.textContent = `Error: Geolocation denied - ${error.message}`;
+        elements.locationError.textContent = 'Error: Geolocation services denied by browser';
         elements.locationError.classList.remove('hidden');
       }
     );
