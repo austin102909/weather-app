@@ -512,14 +512,14 @@ input:checked + .slider:before {
 
 .hour-row {
   display: grid;
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 140px 1fr;
   grid-template-rows: auto auto;
   background: var(--card-bg);
   border-radius: 8px;
   margin-bottom: 12px;
   padding: 12px;
   box-shadow: 0 4px 12px var(--shadow);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .hour-row:hover {
@@ -528,33 +528,33 @@ input:checked + .slider:before {
 
 .hour-image {
   grid-row: 1 / 3;
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   margin: 0;
   object-fit: contain;
 }
 
 .hour-content {
-  display: grid;
-  grid-template-rows: auto auto;
   padding-left: 16px;
 }
 
 .hour-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 20px;
   margin-bottom: 8px;
 }
 
-.hour-temp {
-  font-size: 3.5rem;
+.hour-row .hour-temp {
+  font-size: 4rem;
   font-weight: 600;
   order: 1;
+  color: var(--text-color);
 }
 
-.hour-title {
-  font-size: 2rem;
+.hour-row .hour-title {
+  font-size: 2.5rem;
   font-weight: 500;
   color: var(--text-color);
   order: 2;
@@ -566,7 +566,7 @@ input:checked + .slider:before {
 }
 
 .hour-details span {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   color: var(--text-color);
 }
 
@@ -576,7 +576,7 @@ input:checked + .slider:before {
   margin-bottom: 16px;
   padding: 16px;
   box-shadow: 0 4px 12px var(--shadow);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .day-row:hover {
@@ -584,7 +584,7 @@ input:checked + .slider:before {
 }
 
 .day-title {
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 600;
   color: var(--text-color);
   margin-bottom: 12px;
@@ -610,18 +610,18 @@ input:checked + .slider:before {
 }
 
 .day-item img {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   margin: 8px auto;
 }
 
 .day-item p {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   margin: 4px 0;
 }
 
 .detailed-forecast {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   color: var(--text-color);
   opacity: 0.85;
   margin-top: 8px;
@@ -633,7 +633,7 @@ input:checked + .slider:before {
   padding: 16px;
   margin-bottom: 12px;
   box-shadow: 0 4px 12px var(--shadow);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .alert-item.low {
@@ -798,27 +798,26 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 100px 1fr;
+    grid-template-columns: 120px 1fr;
   }
 
   .hour-image {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
   }
 
-  .hour-header {
-    display: flex;
-    align-items: center;
+  .hour-row .hour-header {
+    flex-direction: row;
     gap: 16px;
   }
 
-  .hour-temp {
-    font-size: 2.5rem;
+  .hour-row .hour-temp {
+    font-size: 3rem;
     order: 1;
   }
 
-  .hour-title {
-    font-size: 1.5rem;
+  .hour-row .hour-title {
+    font-size: 2rem;
     order: 2;
   }
 
@@ -827,7 +826,7 @@ input:checked + .slider:before {
   }
 
   .hour-details span {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
   }
 
   .day-night-container {
@@ -843,28 +842,20 @@ input:checked + .slider:before {
   }
 
   .day-item img {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
   }
 
   .day-title {
-    font-size: 1.75rem;
+    font-size: 1.8rem;
   }
 
   .day-item p {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
   }
 
   .detailed-forecast {
-    font-size: 1.1rem;
-  }
-
-  .alert-title {
-    font-size: 1rem;
-  }
-
-  .alert-description {
-    font-size: 0.85rem;
+    font-size: 1.2rem;
   }
 
   #data-table-container {
@@ -919,43 +910,56 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 80px 1fr;
+    grid-template-columns: 100px 1fr;
   }
 
   .hour-image {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
   }
 
-  .hour-temp {
-    font-size: 2rem;
+  .hour-row .hour-header {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .hour-row .hour-temp {
+    font-size: 2.5rem;
     order: 1;
   }
 
-  .hour-title {
-    font-size: 1.2rem;
+  .hour-row .hour-title {
+    font-size: 1.5rem;
     order: 2;
   }
 
   .hour-details span {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
   }
 
   .day-title {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
   }
 
   .day-item img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
   }
 
   .day-item p {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
 
   .detailed-forecast {
-    font-size: 0.95rem;
+    font-size: 1rem;
+  }
+
+  .alert-title {
+    font-size: 1rem;
+  }
+
+  .alert-description {
+    font-size: 0.85rem;
   }
 
   #data-view-title {
