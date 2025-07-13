@@ -21,6 +21,7 @@
   --wind-direction-color: #f59e0b;
   --search-bg: #ffffff;
   --search-text: #1a2634;
+  --table-header-bg: #1a1a1a;
 }
 
 [data-theme="dark"] {
@@ -46,6 +47,7 @@
   --wind-direction-color: #fbbf24;
   --search-bg: #374151;
   --search-text: #f3f4f6;
+  --table-header-bg: #2d2d2d;
 }
 
 body {
@@ -162,7 +164,7 @@ body {
 }
 
 .weather-result {
-  padding-top: 112px; /* 64px header + 48px tabs */
+  padding-top: 112px;
   min-height: calc(100vh - 112px);
   position: relative;
   z-index: 10;
@@ -369,7 +371,7 @@ input:checked + .slider:before {
   background: var(--bg-color);
   z-index: 20;
   position: fixed;
-  top: 112px; /* Below header (64px) and tabs (48px) */
+  top: 112px;
   left: 0;
   width: 100%;
   height: calc(100vh - 112px);
@@ -390,7 +392,7 @@ input:checked + .slider:before {
   background: var(--bg-color);
   z-index: 20;
   position: fixed;
-  top: 112px; /* Below header and tabs */
+  top: 112px;
   left: 0;
   width: 100%;
   height: calc(100vh - 112px);
@@ -692,7 +694,7 @@ input:checked + .slider:before {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--header-bg);
+  background: var(--table-header-bg);
   color: var(--header-text);
   border-bottom: 1px solid var(--border-color);
   font-weight: 600;
@@ -703,7 +705,7 @@ input:checked + .slider:before {
 
 #data-table thead th:first-child {
   z-index: 110;
-  background: var(--header-bg);
+  background: var(--table-header-bg);
 }
 
 #data-table th, #data-table td {
@@ -738,7 +740,7 @@ input:checked + .slider:before {
 }
 
 #summary-table th {
-  background: var(--header-bg);
+  background: var(--table-header-bg);
   color: var(--header-text);
 }
 
