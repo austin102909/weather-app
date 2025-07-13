@@ -26,6 +26,7 @@ const elements = {
 const SYNOPTIC_API_TOKEN = '81ebbb6ea61247ac85cb88a96d97fcf2';
 const SYNOPTIC_API_BASE_URL = 'https://api.synopticdata.com/v2/';
 let allObservations = [], allTimestamps = [], currentStationId = null, currentTimezone = 'America/Chicago';
+let isSearchActive = true; // Track if search screen was active before overlay
 const pressureTendencyCodes = { 0: "Rising, then falling", 1: "Rising slowly", 2: "Rising steadily", 3: "Rising quickly", 4: "Steady", 5: "Falling, then rising", 6: "Falling slowly", 7: "Falling steadily", 8: "Falling quickly" };
 
 function getTemperatureColor(tempF) {
@@ -249,8 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const response = await fetch(url, { headers: { 'User-Agent': 'NWS Weather App', 'accept': 'application/geo+json' } });
         if (response.status === 429) {
-          console.error('FetchWithRetry Error: API rate limit exceeded for', url);
-          elements.locationError.textContent = 'Error: API rate limit exceeded. Please try again later.';
+          console.warn('FetchWithRetry Warning: API rate limit exceeded for', url);
+          elements.locationError.textContent = 'Warning: API rate limit exceeded. Retrying...';
           elements.locationError.classList.remove('hidden');
           await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
           continue;
@@ -259,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return response;
       } catch (error) {
         if (i === retries - 1) throw error;
+        console.warn(`FetchWithRetry Attempt ${i + 1} failed: ${error.message}`);
       }
     }
   };
@@ -267,34 +269,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const cacheKey = `reverse_${lat.toFixed(4)}_${lng.toFixed(4)}`;
     const cached = getCachedData(cacheKey);
     if (cached) return cached;
-    const response = await fetchWithRetry(`${GEOCODING_API}?q=${lat}+${lng}&key=${API_KEY}&countrycode=US&limit=1`);
-    const data = await response.json();
-    if (!data.results.length) throw new Error('No geocoding results');
-    const result = data.results[0].formatted.replace(/United States of America/, 'U.S.');
-    setCachedData(cacheKey, result);
-    return result;
+    try {
+      const response = await fetchWithRetry(`${GEOCODING_API}?q=${lat}+${lng}&key=${API_KEY}&countrycode=US&limit=1`);
+      const data = await response.json();
+      if (!data.results.length) throw new Error('No geocoding results');
+      const result = data.results[0].formatted.replace(/United States of America/, 'U.S.');
+      setCachedData(cacheKey, result);
+      return result;
+    } catch (error) {
+      console.error('ReverseGeocode Error:', error.message);
+      throw error;
+    }
   };
 
   const fetchGeocoding = async (query) => {
     const cacheKey = `geo_${query.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
     const cached = getCachedData(cacheKey);
     if (cached) return cached;
-    const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
-    const data = await response.json();
-    if (!data.results.length) throw new Error('No geocoding results');
-    const result = { name: data.results[0].formatted.replace(/United States of America/, 'U.S.'), lat: parseFloat(data.results[0].geometry.lat), lng: parseFloat(data.results[0].geometry.lng) };
-    setCachedData(cacheKey, result);
-    return result;
+    try {
+      const response = await fetchWithRetry(`${GEOCODING_API}?q=${encodeURIComponent(query)}&key=${API_KEY}&countrycode=US&limit=5`);
+      const data = await response.json();
+      if (!data.results.length) throw new Error('No geocoding results');
+      const result = { name: data.results[0].formatted.replace(/United States of America/, 'U.S.'), lat: parseFloat(data.results[0].geometry.lat), lng: parseFloat(data.results[0].geometry.lng) };
+      setCachedData(cacheKey, result);
+      return result;
+    } catch (error) {
+      console.error('FetchGeocoding Error:', error.message);
+      throw error;
+    }
   };
 
   const fetchHourlyForecast = async (wfo, gridX, gridY) => {
     const cacheKey = `hourly_${wfo}_${gridX}_${gridY}`;
     let hourlyData = getCachedData(cacheKey);
     if (!hourlyData) {
-      const response = await fetchWithRetry(`${NWS_API}/gridpoints/${wfo}/${gridX},${gridY}/forecast/hourly`);
-      hourlyData = await response.json();
-      if (!hourlyData.properties?.periods) throw new Error('No hourly forecast data');
-      setCachedData(cacheKey, hourlyData);
+      try {
+        const response = await fetchWithRetry(`${NWS_API}/gridpoints/${wfo}/${gridX},${gridY}/forecast/hourly`);
+        hourlyData = await response.json();
+        if (!hourlyData.properties?.periods) throw new Error('No hourly forecast data');
+        setCachedData(cacheKey, hourlyData);
+      } catch (error) {
+        console.error('FetchHourlyForecast Error:', error.message);
+        hourlyData = { properties: { periods: [] } };
+      }
     }
     return hourlyData;
   };
@@ -303,18 +320,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const cacheKey = `7day_${wfo}_${gridX}_${gridY}`;
     let forecastData = getCachedData(cacheKey);
     if (!forecastData) {
-      const response = await fetchWithRetry(`${NWS_API}/gridpoints/${wfo}/${gridX},${gridY}/forecast`);
-      forecastData = await response.json();
-      if (!forecastData.properties?.periods) throw new Error('No 7-day forecast data');
-      setCachedData(cacheKey, forecastData);
+      try {
+        const response = await fetchWithRetry(`${NWS_API}/gridpoints/${wfo}/${gridX},${gridY}/forecast`);
+        forecastData = await response.json();
+        if (!forecastData.properties?.periods) throw new Error('No 7-day forecast data');
+        setCachedData(cacheKey, forecastData);
+      } catch (error) {
+        console.error('FetchSevenDayForecast Error:', error.message);
+        forecastData = { properties: { periods: [] } };
+      }
     }
     return forecastData;
   };
 
   const fetchAlerts = async (lat, lng) => {
-    const response = await fetchWithRetry(`${NWS_API}/alerts/active?point=${lat},${lng}`);
-    const data = await response.json();
-    return data.features || [];
+    try {
+      const response = await fetchWithRetry(`${NWS_API}/alerts/active?point=${lat},${lng}`);
+      const data = await response.json();
+      return data.features || [];
+    } catch (error) {
+      console.error('FetchAlerts Error:', error.message);
+      return [];
+    }
   };
 
   const fetchCurrentConditions = async (stationsUrl) => {
@@ -366,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     elements.locationError.classList.add('hidden');
     elements.loading.classList.remove('hidden');
+    elements.loading.style.display = 'flex';
     elements.starter.classList.add('hidden');
     elements.starter.style.display = 'none';
     elements.result.classList.add('hidden');
@@ -376,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const timeout = setTimeout(() => {
       elements.loading.classList.add('hidden');
+      elements.loading.style.display = 'none';
       elements.locationError.textContent = 'Error: Data fetch timed out. Please try again.';
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
@@ -458,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       elements.header.textContent = locationName;
       elements.now.innerHTML = `
-        <div class="weather-card">
+        <div class="weather-card full-width">
           <div class="text-center">
             <p class="text-6xl font-extrabold temp-color" style="color: ${getTemperatureColor(displayData.temperature)}">${displayData.temperature}</p>
             <p class="text-2xl font-semibold mt-2">${currentConditions}</p>
@@ -490,34 +519,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const periodTime = new Date(period.startTime);
         return periodTime >= now && periodTime <= twentyFourHoursLater;
       }).slice(0, 24);
-      hourlyPeriods.forEach(period => {
-        const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
-        const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
-        const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
-        const dewPoint = period.dewpoint?.value != null ? `${Math.round((period.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
-        const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
-        const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
-        elements.hourly.insertAdjacentHTML('beforeend', `
-          <div class="hour-row">
-            <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
-            <div class="hour-content">
-              <div class="hour-top-row">
-                <div class="hour-cell">${timeStr}</div>
-                <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-                <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
-              </div>
-              <div class="hour-bottom-row">
-                <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
-                <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
-                <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
-                <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+      if (hourlyPeriods.length === 0) {
+        elements.hourly.innerHTML = '<p class="text-center text-gray-500">No hourly forecast data available.</p>';
+      } else {
+        hourlyPeriods.forEach(period => {
+          const timeStr = new Date(period.startTime).toLocaleTimeString([], { hour: 'numeric', hour12: true });
+          const tempF = period.temperatureUnit === 'F' ? `${period.temperature}°F` : `${Math.round((period.temperature * 9/5) + 32)}°F`;
+          const chanceOfRain = period.probabilityOfPrecipitation?.value != null ? `${period.probabilityOfPrecipitation.value}%` : 'N/A';
+          const dewPoint = period.dewpoint?.value != null ? `${Math.round((period.dewpoint.value * 9/5) + 32)}°F` : 'N/A';
+          const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
+          const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
+          elements.hourly.insertAdjacentHTML('beforeend', `
+            <div class="hour-row">
+              <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
+              <div class="hour-content">
+                <div class="hour-top-row">
+                  <div class="hour-cell">${timeStr}</div>
+                  <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+                  <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+                </div>
+                <div class="hour-bottom-row">
+                  <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
+                  <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
+                  <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
+                  <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+                </div>
               </div>
             </div>
-          </div>
-        `);
-      });
+          `);
+        });
+      }
       elements.sevenDay.innerHTML = '';
       const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
+      const currentHour = luxon.DateTime.now().setZone(currentTimezone).hour;
       const dailyPeriods = [];
       let currentDay = null;
       periods.forEach(period => {
@@ -532,56 +566,64 @@ document.addEventListener('DOMContentLoaded', () => {
           currentDay.night = period;
         }
       });
-      dailyPeriods.forEach((dayPeriod, index) => {
-        const dayName = luxon.DateTime.fromISO(dayPeriod.date, { zone: currentTimezone }).toFormat('EEEE, MMM d');
-        const dayData = dayPeriod.day || {};
-        const nightData = dayPeriod.night || {};
-        const dayTemp = dayData.temperature ? (dayData.temperatureUnit === 'F' ? `${dayData.temperature}°F` : `${Math.round((dayData.temperature * 9/5) + 32)}°F`) : 'N/A';
-        const nightTemp = nightData.temperature ? (nightData.temperatureUnit === 'F' ? `${nightData.temperature}°F` : `${Math.round((nightData.temperature * 9/5) + 32)}°F`) : 'N/A';
-        const dayPrecip = dayData.probabilityOfPrecipitation?.value != null ? `${dayData.probabilityOfPrecipitation.value}%` : 'N/A';
-        const nightPrecip = nightData.probabilityOfPrecipitation?.value != null ? `${nightData.probabilityOfPrecipitation.value}%` : 'N/A';
-        const dayWind = dayData.windSpeed && dayData.windDirection ? `${dayData.windSpeed} ${dayData.windDirection}` : 'N/A';
-        const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${nightData.windDirection}` : 'N/A';
-        const dayForecast = dayData.shortForecast || 'N/A';
-        const nightForecast = nightData.shortForecast || 'N/A';
-        const dayDetailed = dayData.detailedForecast || 'N/A';
-        const nightDetailed = nightData.detailedForecast || 'N/A';
-        const dayIcon = dayData.icon || `${NWS_API}/icons/land/day/skc?size=medium`;
-        const nightIcon = nightData.icon || `${NWS_API}/icons/land/night/skc?size=medium`;
-        elements.sevenDay.insertAdjacentHTML('beforeend', `
-          <div class="day-row">
-            <h3 class="day-title">${dayName}</h3>
-            <div class="day-night-container">
-              <div class="day-item">
-                <p class="font-medium">Day</p>
-                <img src="${dayIcon}" alt="${dayForecast}" class="mt-2">
-                <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(dayTemp)}">${dayTemp}</span></p>
-                <p>Precip: <span style="color: var(--precip-color)">${dayPrecip}</span></p>
-                <p>Wind: <span style="color: var(--wind-color)">${dayWind}</span></p>
-                <p>${dayForecast}</p>
-                <p class="detailed-forecast">${dayDetailed}</p>
-              </div>
-              <div class="day-item">
-                <p class="font-medium">Night</p>
-                <img src="${nightIcon}" alt="${nightForecast}" class="mt-2">
-                <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(nightTemp)}">${nightTemp}</span></p>
-                <p>Precip: <span style="color: var(--precip-color)">${nightPrecip}</span></p>
-                <p>Wind: <span style="color: var(--wind-color)">${nightWind}</span></p>
-                <p>${nightForecast}</p>
-                <p class="detailed-forecast">${nightDetailed}</p>
+      if (dailyPeriods.length === 0) {
+        elements.sevenDay.innerHTML = '<p class="text-center text-gray-500">No 7-day forecast data available.</p>';
+      } else {
+        dailyPeriods.forEach((dayPeriod, index) => {
+          const isToday = dayPeriod.date === today.toISODate();
+          const showDay = !isToday || (isToday && currentHour < 18 && dayPeriod.day); // Show day if not today or before 6 PM
+          const dayName = luxon.DateTime.fromISO(dayPeriod.date, { zone: currentTimezone }).toFormat('EEEE, MMM d');
+          const dayData = dayPeriod.day || {};
+          const nightData = dayPeriod.night || {};
+          const dayTemp = dayData.temperature ? (dayData.temperatureUnit === 'F' ? `${dayData.temperature}°F` : `${Math.round((dayData.temperature * 9/5) + 32)}°F`) : 'N/A';
+          const nightTemp = nightData.temperature ? (nightData.temperatureUnit === 'F' ? `${nightData.temperature}°F` : `${Math.round((nightData.temperature * 9/5) + 32)}°F`) : 'N/A';
+          const dayPrecip = dayData.probabilityOfPrecipitation?.value != null ? `${dayData.probabilityOfPrecipitation.value}%` : 'N/A';
+          const nightPrecip = nightData.probabilityOfPrecipitation?.value != null ? `${nightData.probabilityOfPrecipitation.value}%` : 'N/A';
+          const dayWind = dayData.windSpeed && dayData.windDirection ? `${dayData.windSpeed} ${dayData.windDirection}` : 'N/A';
+          const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${dayData.windDirection}` : 'N/A';
+          const dayForecast = dayData.shortForecast || 'N/A';
+          const nightForecast = nightData.shortForecast || 'N/A';
+          const dayDetailed = dayData.detailedForecast || 'N/A';
+          const nightDetailed = nightData.detailedForecast || 'N/A';
+          const dayIcon = dayData.icon || `${NWS_API}/icons/land/day/skc?size=medium`;
+          const nightIcon = nightData.icon || `${NWS_API}/icons/land/night/skc?size=medium`;
+          const nightClass = showDay ? 'day-item' : 'day-item full-width';
+          elements.sevenDay.insertAdjacentHTML('beforeend', `
+            <div class="day-row">
+              <h3 class="day-title">${dayName}</h3>
+              <div class="day-night-container">
+                ${showDay ? `
+                  <div class="day-item">
+                    <p class="font-medium">Day</p>
+                    <img src="${dayIcon}" alt="${dayForecast}" class="mt-2">
+                    <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(dayTemp)}">${dayTemp}</span></p>
+                    <p>Precip: <span style="color: var(--precip-color)">${dayPrecip}</span></p>
+                    <p>Wind: <span style="color: var(--wind-color)">${dayWind}</span></p>
+                    <p>${dayForecast}</p>
+                    <p class="detailed-forecast">${dayDetailed}</p>
+                  </div>
+                ` : ''}
+                <div class="${nightClass}">
+                  <p class="font-medium">Night</p>
+                  <img src="${nightIcon}" alt="${nightForecast}" class="mt-2">
+                  <p>Temp: <span class="temp-color" style="color: ${getTemperatureColor(nightTemp)}">${nightTemp}</span></p>
+                  <p>Precip: <span style="color: var(--precip-color)">${nightPrecip}</span></p>
+                  <p>Wind: <span style="color: var(--wind-color)">${nightWind}</span></p>
+                  <p>${nightForecast}</p>
+                  <p class="detailed-forecast">${nightDetailed}</p>
+                </div>
               </div>
             </div>
-          </div>
-        `);
-      });
+          `);
+        });
+      }
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
       elements.alertsButton.classList.remove('hidden');
       elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => `
-        <div class="alert-item ${alert.properties.severity?.toLowerCase() || 'low'}" data-alert-index="${index}">
+        <div class="alert-item" data-alert-index="${index}">
           <p class="alert-title" data-alert-index="${index}">
             <span>${alert.properties.headline || alert.properties.event || 'Alert'}</span>
-            <span class="severity ${alert.properties.severity?.toLowerCase() || 'low'}">${alert.properties.severity || 'Unknown'}</span>
           </p>
           <p class="alert-description" id="alert-description-${index}">${alert.properties.description || 'No description available.'}</p>
         </div>
@@ -595,6 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       clearTimeout(timeout);
       elements.loading.classList.add('hidden');
+      elements.loading.style.display = 'none';
       elements.starter.classList.add('hidden');
       elements.starter.style.display = 'none';
       elements.result.classList.remove('hidden');
@@ -609,11 +652,13 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.starter.style.opacity = '0';
         console.log('Weather data rendered: starter hidden, tabs/result shown');
       }, 10);
+      isSearchActive = false;
     } catch (e) {
       console.error('FetchWeather Error:', e.message);
       clearTimeout(timeout);
       elements.loading.classList.add('hidden');
-      elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${e.message}`;
+      elements.loading.style.display = 'none';
+      elements.locationError.textContent = e.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: Failed to fetch weather data. Please try again.`;
       elements.locationError.classList.remove('hidden');
       elements.starter.classList.remove('hidden');
       elements.starter.style.display = 'flex';
@@ -622,6 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.tabs.classList.add('hidden');
       elements.tabs.style.display = 'none';
       console.log('Fetch error: starter shown, tabs/result hidden');
+      isSearchActive = true;
     }
   }
 
@@ -706,16 +752,27 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.autocomplete.classList.add('hidden');
     elements.locationError.classList.add('hidden');
     elements.loading.classList.add('hidden');
+    elements.loading.style.display = 'none';
     console.log('Header clicked: starter shown, tabs/result hidden');
+    isSearchActive = true;
   });
 
   document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => {
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+        content.style.display = 'none';
+      });
       button.classList.add('active');
       const tabSection = document.getElementById(`${button.dataset.tab}-section`);
-      if (tabSection) tabSection.classList.add('active');
+      if (tabSection) {
+        tabSection.classList.add('active');
+        tabSection.style.display = 'block';
+        // Force re-render to ensure content is positioned correctly
+        tabSection.style.opacity = '0';
+        setTimeout(() => { tabSection.style.opacity = '1'; }, 10);
+      }
       console.log(`Tab switched to: ${button.dataset.tab}`);
     });
   });
@@ -735,6 +792,8 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
     elements.starter.style.display = 'none';
+    elements.loading.classList.add('hidden');
+    elements.loading.style.display = 'none';
     console.log('Alerts button clicked: alerts shown, starter/tabs/result hidden');
   });
 
@@ -746,6 +805,8 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.tabs.style.display = 'none';
     elements.starter.classList.add('hidden');
     elements.starter.style.display = 'none';
+    elements.loading.classList.add('hidden');
+    elements.loading.style.display = 'none';
     console.log('Settings button clicked: settings shown, starter/tabs/result hidden');
   });
 
@@ -753,18 +814,40 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => {
       elements.alerts.classList.remove('active');
       elements.settings.classList.remove('active');
-      elements.result.classList.remove('hidden');
-      elements.result.style.display = 'block';
-      elements.tabs.classList.remove('hidden');
-      elements.tabs.style.display = 'flex';
-      elements.starter.classList.add('hidden');
-      elements.starter.style.display = 'none';
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      const nowTab = document.querySelector('[data-tab="now"]');
-      if (nowTab) nowTab.classList.add('active');
-      elements.now.classList.add('active');
-      console.log('Back button clicked: tabs/result shown, starter hidden');
+      if (isSearchActive) {
+        elements.starter.classList.remove('hidden');
+        elements.starter.style.display = 'flex';
+        elements.starter.style.opacity = '1';
+        elements.result.classList.add('hidden');
+        elements.result.style.display = 'none';
+        elements.tabs.classList.add('hidden');
+        elements.tabs.style.display = 'none';
+        elements.loading.classList.add('hidden');
+        elements.loading.style.display = 'none';
+        console.log('Back button clicked from search: starter shown, tabs/result hidden');
+      } else {
+        elements.result.classList.remove('hidden');
+        elements.result.style.display = 'block';
+        elements.tabs.classList.remove('hidden');
+        elements.tabs.style.display = 'flex';
+        elements.starter.classList.add('hidden');
+        elements.starter.style.display = 'none';
+        elements.loading.classList.add('hidden');
+        elements.loading.style.display = 'none';
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+          content.style.display = 'none';
+        });
+        const nowTab = document.querySelector('[data-tab="now"]');
+        if (nowTab) nowTab.classList.add('active');
+        elements.now.classList.add('active');
+        elements.now.style.display = 'block';
+        // Force re-render to ensure content is positioned correctly
+        elements.now.style.opacity = '0';
+        setTimeout(() => { elements.now.style.opacity = '1'; }, 10);
+        console.log('Back button clicked: tabs/result shown, starter hidden');
+      }
     });
   });
 
@@ -784,6 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     elements.geolocationMessage.classList.remove('hidden');
     elements.locationError.classList.add('hidden');
+    elements.loading.classList.remove('hidden');
+    elements.loading.style.display = 'flex';
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
@@ -795,6 +880,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
           console.error('Geolocation Error:', error.message);
           elements.geolocationMessage.classList.add('hidden');
+          elements.loading.classList.add('hidden');
+          elements.loading.style.display = 'none';
           elements.locationError.textContent = error.message.includes('rate limit') ? 'Error: API rate limit exceeded. Please try again later.' : `Error: ${error.message}`;
           elements.locationError.classList.remove('hidden');
         }
@@ -802,6 +889,8 @@ document.addEventListener('DOMContentLoaded', () => {
       (error) => {
         console.error(`Geolocation Error: Denied - ${error.message}`);
         elements.geolocationMessage.classList.add('hidden');
+        elements.loading.classList.add('hidden');
+        elements.loading.style.display = 'none';
         elements.locationError.textContent = `Error: Geolocation denied - ${error.message}`;
         elements.locationError.classList.remove('hidden');
       }
