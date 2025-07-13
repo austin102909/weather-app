@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weather App</title>
+  <title>NWS Weather</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -15,7 +15,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center">
         <span id="clock" class="text-lg font-semibold mr-4"></span>
-        <h1 id="location-name-header" class="text-center cursor-pointer hover:text-gray-200" title="Change location">Weather App</h1>
+        <h1 id="location-name-header" class="text-center cursor-pointer hover:text-gray-200" title="Change location">NWS Weather</h1>
       </div>
       <div class="flex space-x-2">
         <button id="alerts-button" class="header-button hidden" title="Alerts">
@@ -81,14 +81,16 @@
       <h2 class="text-xl font-semibold ml-4">Settings</h2>
     </div>
     <div class="overlay-content">
-      <div class="settings-toggle">
-        <span>Dark Mode</span>
-        <label class="switch">
-          <input type="checkbox" id="theme-toggle">
-          <span class="slider"></span>
-        </label>
+      <div class="settings-container">
+        <div class="settings-toggle">
+          <span class="settings-label">Dark Mode</span>
+          <label class="switch">
+            <input type="checkbox" id="theme-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="version-text">Version: 1.2</p>
       </div>
-      <p class="text-base text-opacity-70" style="color: var(--text-color)">Version: 1.1</p>
     </div>
   </div>
   <script src="script.js"></script>
