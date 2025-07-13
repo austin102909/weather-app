@@ -516,16 +516,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="hour-row">
               <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
               <div class="hour-content">
-                <div class="hour-top-row">
-                  <div class="hour-cell">${timeStr}</div>
-                  <div class="hour-cell temp-color" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-                  <div class="hour-cell">${period.shortForecast || 'N/A'}</div>
+                <div class="hour-header">
+                  <div class="hour-temp" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+                  <div class="hour-title">${timeStr} - ${period.shortForecast || 'N/A'}</div>
                 </div>
-                <div class="hour-bottom-row">
-                  <div class="hour-cell additional" style="color: var(--precip-color)">Rain: ${chanceOfRain}</div>
-                  <div class="hour-cell additional" style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</div>
-                  <div class="hour-cell additional" style="color: var(--humidity-color)">Hum: ${humidity}</div>
-                  <div class="hour-cell additional" style="color: var(--wind-color)">Wind: ${wind}</div>
+                <div class="hour-details">
+                  <span style="color: var(--precip-color)">Rain: ${chanceOfRain}</span>
+                  <span style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</span>
+                  <span style="color: var(--humidity-color)">Hum: ${humidity}</span>
+                  <span style="color: var(--wind-color)">Wind: ${wind}</span>
                 </div>
               </div>
             </div>
