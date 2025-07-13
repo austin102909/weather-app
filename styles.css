@@ -203,7 +203,7 @@ body {
 #hourly-section {
   display: none;
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 16px;
 }
@@ -215,7 +215,7 @@ body {
 #seven-day-section {
   display: none;
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 16px;
 }
@@ -511,45 +511,59 @@ input:checked + .slider:before {
 }
 
 .hour-row {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  grid-template-rows: auto auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
   background: var(--card-bg);
   border-radius: 8px;
   margin-bottom: 12px;
-  padding: 12px;
+  padding: 16px;
   box-shadow: 0 4px 12px var(--shadow);
-  transition: transform 0.2s ease;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  position: relative;
 }
 
 .hour-row:hover {
   transform: scale(1.01);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hour-row::after {
+  content: '▼';
+  position: absolute;
+  right: 16px;
+  font-size: 1.2rem;
+  color: var(--text-color);
+  transition: transform 0.3s ease;
+}
+
+.hour-row.active::after {
+  transform: rotate(180deg);
 }
 
 .hour-image {
-  grid-row: 1 / 3;
-  width: 140px;
-  height: 140px;
-  margin: 0;
+  width: 160px;
+  height: 160px;
+  margin-right: 20px;
   object-fit: contain;
 }
 
 .hour-content {
-  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .hour-header {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: 20px;
-  margin-bottom: 8px;
 }
 
 .hour-row .hour-temp {
-  font-size: 4rem;
+  font-size: 4.5rem;
   font-weight: 600;
-  order: 1;
   color: var(--text-color);
 }
 
@@ -557,11 +571,31 @@ input:checked + .slider:before {
   font-size: 2.5rem;
   font-weight: 500;
   color: var(--text-color);
-  order: 2;
+  flex: 1;
+}
+
+.hour-row .hour-rain {
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--precip-color);
+}
+
+.hour-dropdown {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  margin-top: 12px;
+}
+
+.hour-dropdown.active {
+  max-height: 200px;
+  opacity: 1;
 }
 
 .hour-details {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
@@ -785,7 +819,7 @@ input:checked + .slider:before {
 
   .weather-card {
     padding: 16px;
-    max-width: 90%;
+    max-width: 100%;
   }
 
   .weather-card.full-width {
@@ -798,31 +832,29 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 120px 1fr;
+    padding: 12px;
   }
 
   .hour-image {
-    width: 120px;
-    height: 120px;
+    width: 140px;
+    height: 140px;
+    margin-right: 16px;
   }
 
   .hour-row .hour-header {
-    flex-direction: row;
     gap: 16px;
   }
 
   .hour-row .hour-temp {
-    font-size: 3rem;
-    order: 1;
+    font-size: 3.5rem;
   }
 
   .hour-row .hour-title {
     font-size: 2rem;
-    order: 2;
   }
 
-  .hour-details {
-    gap: 16px;
+  .hour-row .hour-rain {
+    font-size: 1.5rem;
   }
 
   .hour-details span {
@@ -910,27 +942,29 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 100px 1fr;
+    padding: 10px;
   }
 
   .hour-image {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
+    margin-right: 12px;
   }
 
   .hour-row .hour-header {
-    flex-direction: row;
     gap: 12px;
   }
 
   .hour-row .hour-temp {
-    font-size: 2.5rem;
-    order: 1;
+    font-size: 3rem;
   }
 
   .hour-row .hour-title {
     font-size: 1.5rem;
-    order: 2;
+  }
+
+  .hour-row .hour-rain {
+    font-size: 1.2rem;
   }
 
   .hour-details span {
