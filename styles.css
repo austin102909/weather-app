@@ -203,7 +203,6 @@ body {
 #hourly-section {
   display: none;
   width: 100%;
-  max-width: 600px;
   margin: 0 auto;
   padding: 16px;
 }
@@ -511,63 +510,94 @@ input:checked + .slider:before {
 }
 
 .hour-row {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  grid-template-rows: auto auto;
   background: var(--card-bg);
-  border-radius: 8px;
+  border-radius: 12px;
   margin-bottom: 12px;
   padding: 12px;
   box-shadow: 0 4px 12px var(--shadow);
   transition: all 0.2s ease;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .hour-row:hover {
   transform: scale(1.01);
+  box-shadow: 0 6px 16px var(--shadow);
+}
+
+.hour-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.hour-time {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-color);
+  min-width: 80px;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
 }
 
 .hour-image {
-  grid-row: 1 / 3;
-  width: 100px;
-  height: 100px;
-  margin: 0;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
-.hour-content {
-  display: grid;
-  grid-template-rows: auto auto;
-  padding-left: 16px;
-}
-
-.hour-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
+.hour-condition {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-color);
+  flex-grow: 1;
+  text-align: left;
 }
 
 .hour-temp {
-  font-size: 3rem;
+  font-size: 1.75rem;
   font-weight: 600;
-  order: 1;
+  min-width: 80px;
+  text-align: right;
 }
 
-.hour-title {
-  font-size: 1.5rem;
+.hour-wind {
+  font-size: 1.25rem;
   font-weight: 500;
-  color: var(--text-color);
-  order: 2;
+  min-width: 100px;
+  text-align: right;
 }
 
 .hour-details {
+  display: none;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  transition: all 0.3s ease;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+}
+
+.hour-details.active {
   display: flex;
   gap: 16px;
+  opacity: 1;
+  max-height: 100px;
 }
 
 .hour-details span {
-  font-size: 1.4rem;
-  color: var(--text-color);
+  flex: 1;
+  text-align: center;
 }
 
 .day-row {
@@ -798,38 +828,46 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 80px 1fr;
+    padding: 10px;
+  }
+
+  .hour-main {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .hour-time {
+    font-size: 1.75rem;
+    min-width: 70px;
+    padding: 6px 10px;
   }
 
   .hour-image {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
   }
 
-  .hour-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+  .hour-condition {
+    font-size: 1.1rem;
+    flex-grow: 1;
   }
 
   .hour-temp {
-    font-size: 2rem;
-    order: 1;
+    font-size: 1.5rem;
+    min-width: 70px;
   }
 
-  .hour-title {
-    font-size: 1.2rem;
-    order: 2;
+  .hour-wind {
+    font-size: 1.1rem;
+    min-width: 90px;
   }
 
   .hour-details {
-    flex-wrap: wrap;
-    gap: 12px;
+    font-size: 1rem;
   }
 
   .hour-details span {
-    font-size: 1.2rem;
+    flex: 1;
   }
 
   .day-night-container {
@@ -913,26 +951,46 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    grid-template-columns: 64px 1fr;
+    padding: 8px;
+  }
+
+  .hour-main {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .hour-time {
+    font-size: 1.5rem;
+    min-width: 60px;
+    padding: 6px 8px;
   }
 
   .hour-image {
-    width: 64px;
-    height: 64px;
+    width: 60px;
+    height: 60px;
+  }
+
+  .hour-condition {
+    font-size: 1rem;
+    flex-grow: 1;
   }
 
   .hour-temp {
-    font-size: 1.75rem;
-    order: 1;
+    font-size: 1.25rem;
+    min-width: 60px;
   }
 
-  .hour-title {
+  .hour-wind {
     font-size: 1rem;
-    order: 2;
+    min-width: 80px;
+  }
+
+  .hour-details {
+    font-size: 0.9rem;
   }
 
   .hour-details span {
-    font-size: 1rem;
+    flex: 1;
   }
 
   .day-title {
