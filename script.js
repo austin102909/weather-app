@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const synopticSuccess = await fetchStationData(stationId, startDate, endDate);
       let displayData = nwsData, lastUpdated = nwsData.lastUpdated;
       if (synopticSuccess && allObservations && allTimestamps.length) {
-        const variables = ['air_temp_set_1', 'relative_humidity_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'visibility_set_1', 'wind_speed_set_1', 'wind_gust_set_1', 'wind_cardinal_direction_set_1d', 'pressure_set_1d', 'precip_accum_24_hour_set_1', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'];
+        const variables = ['air_temp_set_1', 'relative_humidity_set_1', 'heat_index_set_1d', 'dew_point_temperature_set_1d', 'visibility_set_1', 'wind_speed_set_1', 'wind_cardinal_direction_set_1d', 'wind_gust_set_1', 'pressure_set_1d', 'precip_accum_24_hour_set_1', 'air_temp_high_24_hour_set_1', 'air_temp_low_24_hour_set_1'];
         const { lastNonNullValues } = convertToAmericanUnits(allObservations, variables);
         displayData = {
           temperature: lastNonNullValues['air_temp_set_1'] || nwsData.temperature,
@@ -513,24 +513,32 @@ document.addEventListener('DOMContentLoaded', () => {
           const humidity = period.relativeHumidity?.value != null ? `${period.relativeHumidity.value}%` : 'N/A';
           const wind = period.windSpeed && period.windDirection ? `${period.windSpeed} ${period.windDirection}` : 'N/A';
           elements.hourly.insertAdjacentHTML('beforeend', `
-            <div class="hour-row">
-              <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
-              <div class="hour-content">
-                <div class="hour-header">
-                  <div class="hour-temp" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
-                  <div class="hour-title">${timeStr} - ${period.shortForecast || 'N/A'}</div>
-                </div>
-                <div class="hour-details">
-                  <span style="color: var(--precip-color)">Rain: ${chanceOfRain}</span>
-                  <span style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</span>
-                  <span style="color: var(--humidity-color)">Hum: ${humidity}</span>
-                  <span style="color: var(--wind-color)">Wind: ${wind}</span>
-                </div>
+            <div class="hour-row" data-expanded="false">
+              <div class="hour-main">
+                <div class="hour-time">${timeStr}</div>
+                <img src="${period.icon || `${NWS_API}/icons/land/day/skc?size=medium`}" alt="${period.shortForecast || 'Clear'}" class="hour-image">
+                <div class="hour-condition">${period.shortForecast || 'N/A'}</div>
+                <div class="hour-temp" style="color: ${getTemperatureColor(tempF)}">${tempF}</div>
+                <div class="hour-wind" style="color: var(--wind-color)">${wind}</div>
+              </div>
+              <div class="hour-details">
+                <span style="color: var(--precip-color)">Rain: ${chanceOfRain}</span>
+                <span style="color: var(--humidity-color)">Hum: ${humidity}</span>
+                <span style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</span>
               </div>
             </div>
           `);
         });
       }
+      // Add click event listeners for hourly rows
+      document.querySelectorAll('.hour-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const isExpanded = row.getAttribute('data-expanded') === 'true';
+          row.setAttribute('data-expanded', !isExpanded);
+          const details = row.querySelector('.hour-details');
+          details.classList.toggle('active', !isExpanded);
+        });
+      });
       elements.sevenDay.innerHTML = '';
       const today = luxon.DateTime.now().setZone(currentTimezone).startOf('day');
       const currentHour = luxon.DateTime.now().setZone(currentTimezone).hour;
@@ -601,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
-      elements.alertsButton.classList.remove('hidden');
+      elements.alertsButton.classList.remove('隱藏');
       elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => `
         <div class="alert-item" data-alert-index="${index}">
           <p class="alert-title" data-alert-index="${index}">
