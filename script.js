@@ -526,11 +526,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span style="color: var(--humidity-color)">Hum: ${humidity}</span>
                 <span style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</span>
               </div>
+              <span class="hour-arrow">></span>
             </div>
           `);
         });
       }
-      // Add click event listeners for hourly rows
       document.querySelectorAll('.hour-row').forEach(row => {
         row.addEventListener('click', () => {
           const isExpanded = row.getAttribute('data-expanded') === 'true';
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const dayPrecip = dayData.probabilityOfPrecipitation?.value != null ? `${dayData.probabilityOfPrecipitation.value}%` : 'N/A';
           const nightPrecip = nightData.probabilityOfPrecipitation?.value != null ? `${nightData.probabilityOfPrecipitation.value}%` : 'N/A';
           const dayWind = dayData.windSpeed && dayData.windDirection ? `${dayData.windSpeed} ${dayData.windDirection}` : 'N/A';
-          const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${dayData.windDirection}` : 'N/A';
+          const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${nightData.windDirection}` : 'N/A';
           const dayForecast = dayData.shortForecast || 'N/A';
           const nightForecast = nightData.shortForecast || 'N/A';
           const dayDetailed = dayData.detailedForecast || 'N/A';
