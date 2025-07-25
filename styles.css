@@ -530,7 +530,7 @@ input:checked + .slider:before {
 .hour-main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px; /* Increased gap for better spacing */
   flex-wrap: nowrap;
 }
 
@@ -548,7 +548,7 @@ input:checked + .slider:before {
   height: 80px;
   object-fit: contain;
   flex-shrink: 0;
-  margin-left: 20px; /* Added to shift image right */
+  margin-left: 30px; /* Increased to shift image right for alignment */
 }
 
 .hour-condition {
@@ -556,23 +556,22 @@ input:checked + .slider:before {
   font-weight: 500;
   color: var(--text-color);
   flex-grow: 1;
-  text-align: left;
-  margin-left: 20px; /* Added to shift condition right */
+  text-align: center; /* Centered condition text */
 }
 
 .hour-temp {
   font-size: 1.75rem;
   font-weight: 600;
-  min-width: 100px; /* Increased for consistent spacing */
-  text-align: right;
-  margin-right: 20px; /* Added for spacing */
+  min-width: 120px; /* Increased for even spacing */
+  text-align: center; /* Centered for balance */
 }
 
 .hour-wind {
   font-size: 1.25rem;
   font-weight: 500;
-  min-width: 120px; /* Increased for consistent spacing */
-  text-align: right;
+  min-width: 140px; /* Increased for even spacing */
+  text-align: right; /* Aligned right for clarity */
+  padding-right: 30px; /* Added to prevent arrow overlap */
 }
 
 .hour-details {
@@ -603,14 +602,14 @@ input:checked + .slider:before {
   position: absolute;
   right: 12px;
   top: 50%;
-  transform: translateY(-50%) rotate(90deg); /* Down arrow by default */
+  transform: translateY(-50%) rotate(90deg);
   font-size: 1.5rem;
   color: var(--text-color);
   transition: transform 0.3s ease;
 }
 
 .hour-row[data-expanded="true"] .hour-arrow {
-  transform: translateY(-50%) rotate(-90deg); /* Up arrow when expanded */
+  transform: translateY(-50%) rotate(-90deg);
 }
 
 .day-row {
@@ -676,7 +675,6 @@ input:checked + .slider:before {
   padding: 16px;
   margin-bottom: 12px;
   box-shadow: 0 4px 12px var(--shadow);
-  transition: all 0.2s ease;
 }
 
 .alert-item.low {
@@ -811,10 +809,6 @@ input:checked + .slider:before {
   transition: color 0.2s ease;
 }
 
-.back-button:hover {
-  color: var(--highlight-color);
-}
-
 @media (max-width: 768px) {
   .header h1 {
     font-size: 1.4rem;
@@ -841,12 +835,12 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    padding: 10px;
+    padding: 12px;
   }
 
   .hour-main {
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
   }
 
   .hour-time {
@@ -857,23 +851,24 @@ input:checked + .slider:before {
   .hour-image {
     width: 70px;
     height: 70px;
-    margin-left: 15px;
+    margin-left: 16px;
   }
 
   .hour-condition {
     font-size: 1.1rem;
-    margin-left: 15px;
+    text-align: center;
   }
 
   .hour-temp {
     font-size: 1.5rem;
-    min-width: 90px;
-    margin-right: 15px;
+    min-width: 100px;
+    text-align: center;
   }
 
   .hour-wind {
     font-size: 1.1rem;
-    min-width: 100px;
+    min-width: 120px;
+    padding-right: 25px;
   }
 
   .hour-details {
@@ -970,12 +965,12 @@ input:checked + .slider:before {
   }
 
   .hour-row {
-    padding: 8px;
+    padding: 10px;
   }
 
   .hour-main {
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
   }
 
   .hour-time {
@@ -986,23 +981,24 @@ input:checked + .slider:before {
   .hour-image {
     width: 60px;
     height: 60px;
-    margin-left: 10px;
+    margin-left: 14px;
   }
 
   .hour-condition {
     font-size: 1rem;
-    margin-left: 10px;
+    text-align: center;
   }
 
   .hour-temp {
     font-size: 1.25rem;
-    min-width: 80px;
-    margin-right: 10px;
+    min-width: 60px;
+    text-align: center;
   }
 
   .hour-wind {
     font-size: 1rem;
-    min-width: 90px;
+    min-width: 100px;
+    padding-right: 20px;
   }
 
   .hour-details {
@@ -1015,7 +1011,7 @@ input:checked + .slider:before {
 
   .hour-arrow {
     font-size: 1rem;
-    right: 8px;
+    right: 10px;
   }
 
   .day-title {
