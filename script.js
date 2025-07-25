@@ -522,9 +522,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="hour-wind" style="color: var(--wind-color)">${wind}</div>
               </div>
               <div class="hour-details">
-                <span style="color: var(--precip-color)">Rain: ${chanceOfRain}</span>
-                <span style="color: var(--humidity-color)">Hum: ${humidity}</span>
-                <span style="color: var(--dewpoint-color)">Dew Pt: ${dewPoint}</span>
+                <span style="color: var(--precip-color)">Precipitation Chance: ${chanceOfRain}</span>
+                <span style="color: var(--humidity-color)">Humidity: ${humidity}</span>
+                <span style="color: var(--dewpoint-color)">Dew Point: ${dewPoint}</span>
               </div>
               <span class="hour-arrow">></span>
             </div>
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const dayPrecip = dayData.probabilityOfPrecipitation?.value != null ? `${dayData.probabilityOfPrecipitation.value}%` : 'N/A';
           const nightPrecip = nightData.probabilityOfPrecipitation?.value != null ? `${nightData.probabilityOfPrecipitation.value}%` : 'N/A';
           const dayWind = dayData.windSpeed && dayData.windDirection ? `${dayData.windSpeed} ${dayData.windDirection}` : 'N/A';
-          const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${nightData.windDirection}` : 'N/A';
+          const nightWind = nightData.windSpeed && nightData.windDirection ? `${nightData.windSpeed} ${dayData.windDirection}` : 'N/A';
           const dayForecast = dayData.shortForecast || 'N/A';
           const nightForecast = nightData.shortForecast || 'N/A';
           const dayDetailed = dayData.detailedForecast || 'N/A';
@@ -609,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       elements.alertsCount.textContent = activeAlerts.length;
       elements.alertsCount.classList.toggle('hidden', activeAlerts.length === 0);
-      elements.alertsButton.classList.remove('隱藏');
+      elements.alertsButton.classList.remove('hidden');
       elements.alertsList.innerHTML = activeAlerts.length ? activeAlerts.map((alert, index) => `
         <div class="alert-item" data-alert-index="${index}">
           <p class="alert-title" data-alert-index="${index}">
