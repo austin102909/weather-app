@@ -23,7 +23,7 @@ const elements = {
   summaryTableBody: document.getElementById('summary-table-body')
 };
 
-const SYNOPTIC_API_TOKEN = '48e30629c07746e58d63b878697916b1';
+const SYNOPTIC_API_TOKEN = '94c0b00814b54370b4c207e9d9b4e353';
 const SYNOPTIC_API_BASE_URL = 'https://api.synopticdata.com/v2/';
 let allObservations = [], allTimestamps = [], currentStationId = null, currentTimezone = 'America/Chicago';
 let isSearchActive = true;
