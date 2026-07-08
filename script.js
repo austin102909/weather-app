@@ -213,7 +213,7 @@ async function fetchStationData(stationId, startDate, endDate) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const API_KEY = '86f857c7c80b4ba3bfe3afdb9fefb393';
+  const API_KEY = 'e72464a4cd13432eaca0260cf7261f1a';
   const GEOCODING_API = 'https://api.opencagedata.com/geocode/v1/json';
   const NWS_API = 'https://api.weather.gov';
   let selectedLocation = null, activeAlerts = [];
